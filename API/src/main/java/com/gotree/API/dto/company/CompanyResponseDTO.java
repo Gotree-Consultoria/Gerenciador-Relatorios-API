@@ -11,5 +11,5 @@ public class CompanyResponseDTO {
     private String name;
     private String cnpj;
     private List<UnitDTO> units;
-    private List<String> sectors;
+    private List<SectorResponseDTO> sectors;
 }

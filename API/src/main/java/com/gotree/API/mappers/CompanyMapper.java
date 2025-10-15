@@ -2,6 +2,7 @@ package com.gotree.API.mappers;
 
 import com.gotree.API.dto.company.CompanyRequestDTO;
 import com.gotree.API.dto.company.CompanyResponseDTO;
+import com.gotree.API.dto.company.SectorResponseDTO;
 import com.gotree.API.dto.company.UnitDTO;
 import com.gotree.API.entities.Company;
 import com.gotree.API.entities.Sector;
@@ -39,17 +40,23 @@ public interface CompanyMapper {
         }
         return units.stream().map(unit -> {
             UnitDTO dto = new UnitDTO();
+            dto.setId(unit.getId());
             dto.setName(unit.getName());
             dto.setCnpj(unit.getCnpj());
             return dto;
         }).collect(Collectors.toList());
     }
 
-    default List<String> mapSectorsToStrings(Set<Sector> sectors) {
+    default List<SectorResponseDTO> mapSectorsToSectorResponseDTOs(Set<Sector> sectors) {
         if (sectors == null) {
             return null;
         }
-        return sectors.stream().map(Sector::getName).collect(Collectors.toList());
+        return sectors.stream().map(sector -> {
+            SectorResponseDTO dto = new SectorResponseDTO();
+            dto.setId(sector.getId());
+            dto.setName(sector.getName());
+            return dto;
+        }).collect(Collectors.toList());
     }
 
 

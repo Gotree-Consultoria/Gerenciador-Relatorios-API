@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>AEP</title>
+</head>
+<body>
+<h1>Avaliação Ergonômica Preliminar (AEP)</h1>
+<hr/>
+<p><strong>Empresa:</strong> <span th:text="${companyName}"></span></p>
+<p><strong>Avaliador:</strong> <span th:text="${evaluator}"></span></p>
+<p><strong>Data:</strong> <span th:text="${#temporals.format(evaluationDate, 'dd/MM/yyyy')}"></span></p>
+<p><strong>Função Avaliada:</strong> <span th:text="${evaluatedFunction}"></span></p>
+<hr/>
+<h3>Riscos Identificados</h3>
+<ul>
+    <li th:each="risk : ${risks}" th:text="${risk.description}">Descrição do Risco</li>
+</ul>
+</body>
+</html>

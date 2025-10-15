@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<h1>Relatório de Visita Técnica</h1>
+<p><strong>Data da Visita:</strong> <span th:text="${#temporals.format(visitDate, 'dd/MM/yyyy')}"></span></p>
+<h3>Resumo</h3>
+<p th:text="${summary}"></p>
+<hr/>
+<h3>Registros Fotográficos</h3>
+<div th:each="record : ${photoRecords}" style="margin-bottom: 20px;">
+    <p th:text="${record.description}"></p>
+    <img th:if="${record.imageBase64 != null}"
+         th:src="${'data:image/jpeg;base64,' + record.imageBase64}"
+         style="max-width: 500px; border: 1px solid #ccc;" />
+</div>
+</body>
+</html>

@@ -23,7 +23,7 @@ public class UserRequestDTO {
 	@Size(min = 8, message = "Sua senha deve ter no minimo 8 caracteres")
 	private String password;
 
-	@NotNull(message = "Sua idade é obrigatória")
+	@NotNull(message = "Sua data de nascimento é obrigatória")
 	@Past(message = "A data de nascimento deve ser no passado")
 	@JsonFormat(pattern = "dd/MM/yyyy")
 	private LocalDate birthDate;

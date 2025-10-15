@@ -6,6 +6,8 @@ import lombok.Data;
 @Data
 public class UnitDTO {
 
+    private Long id;
+
     @NotBlank(message = "O nome da unidade é obrigatório.")
     private String name;
 
