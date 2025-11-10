@@ -1,5 +1,6 @@
 package com.gotree.API.dto.report;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.time.LocalDate;
 import java.util.List;
@@ -15,7 +16,9 @@ public class SaveInspectionReportRequestDTO {
     private String title;
 
     // Dados do cabeçalho do formulário
+    @NotNull(message = "A data da inspeção é obrigatória.")
     private LocalDate inspectionDate;
+
     private String local;
 
     // Campos de texto grandes

@@ -4,56 +4,27 @@
     <meta charset="UTF-8"/>
     <title>Checklist de Inspeção NR</title>
     <style>
-        @page {
-            size: A4;
-            margin: 1.5cm;
-        }
+        @page { size: A4; margin: 1.5cm; }
         body {
-            font-family: 'Montserrat', sans-serif; /* Certifique-se de carregar esta fonte no seu ReportService.java */
+            font-family: 'Montserrat', sans-serif;
             font-size: 9pt;
             color: #333;
         }
 
-        /* --- CABEÇALHO --- */
-        h1 {
-            font-size: 14pt;
-            text-align: center;
-            margin: 0;
-            text-transform: uppercase;
-        }
-        h2 {
-            font-size: 11pt;
-            text-align: center;
-            margin: 4px 0 20px 0;
-            font-weight: 500;
-            color: #555;
-        }
+        h1 { font-size: 14pt; text-align: center; margin: 0; text-transform: uppercase; }
+        h2 { font-size: 11pt; text-align: center; margin: 4px 0 20px 0; font-weight: 500; color: #555; }
 
-        /* --- BLOCO DE DADOS GERAIS --- */
-        .info-block {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-        }
+        .info-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 20px; page-break-inside: avoid; }
         .info-block h3 {
             font-size: 10pt;
             background-color: #f2f2f2;
             padding: 6px;
-            margin: -10px -10px 10px -10px; /* Preenche o topo do bloco */
+            margin: -10px -10px 10px -10px;
             border-bottom: 1px solid #ccc;
         }
-        .info-block p {
-            margin: 5px 0;
-            font-size: 9pt;
-        }
+        .info-block p { margin: 5px 0; font-size: 9pt; }
 
-        /* --- TABELA DO CHECKLIST --- */
-        .checklist-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
+        .checklist-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         .checklist-table th {
             background-color: #f2f2f2;
             padding: 6px;
@@ -61,94 +32,73 @@
             text-align: center;
             font-size: 8pt;
         }
-        .checklist-table td {
-            padding: 5px;
-            border: 1px solid #eee;
-            vertical-align: top;
-        }
+        .checklist-table td { padding: 5px; border: 1px solid #eee; vertical-align: top; }
 
-        /* Colunas de Check */
-        .check-col {
-            width: 30px;
-            text-align: center;
-            font-weight: bold;
-            font-size: 10pt;
-        }
-        /* Coluna de Item (Descrição) */
-        .item-col {
-            width: 45%;
-        }
-        /* Coluna de Justificativa */
-        .just-col {
-            width: 35%;
-            font-size: 8pt;
-            color: #444;
-            word-wrap: break-word;
-        }
+        .check-col { width: 30px; text-align: center; font-weight: bold; font-size: 10pt; }
+        .item-col { width: 45%; }
+        .just-col { width: 35%; font-size: 8pt; color: #444; word-wrap: break-word; }
 
-        /* Linha da Seção-Pai (ex: Higiene e Limpeza) */
-        .section-header td {
-            background-color: #f9f9f9;
-            font-weight: bold;
-            font-size: 9pt;
-            border-top: 1.5px solid #999;
-        }
-        /* Linha do Item-Filho */
-        .item-row td {
-            padding-left: 15px; /* Indentação para itens filhos */
-        }
-        .item-row:nth-child(even) td {
-            background-color: #fcfcfc;
-        }
+        .section-header td { background-color: #f9f9f9; font-weight: bold; font-size: 9pt; border-top: 1.5px solid #999; }
+        .item-row td { padding-left: 15px; }
+        .item-row:nth-child(even) td { background-color: #fcfcfc; }
 
-        /* --- OBSERVAÇÕES E ASSINATURAS --- */
-        .notes-block {
-            margin-top: 25px;
-            padding: 10px;
-            border: 1px solid #eee;
-            background: #fdfdfd;
-            page-break-inside: avoid;
-        }
-        .notes-block h3 {
-            font-size: 10pt;
-            margin: 0 0 8px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #eee;
-        }
-        .notes-block p {
-            font-size: 9pt;
-            white-space: pre-wrap; /* Preserva quebras de linha */
-            margin: 0;
-        }
+        .notes-block { margin-top: 25px; padding: 10px; border: 1px solid #eee; background: #fdfdfd; page-break-inside: avoid; }
+        .notes-block h3 { font-size: 10pt; margin: 0 0 8px 0; padding-bottom: 5px; border-bottom: 1px solid #eee; }
+        .notes-block p { font-size: 9pt; white-space: pre-wrap; margin: 0; }
 
-        .signatures {
-            margin-top: 40px;
-            width: 100%;
-            page-break-inside: avoid;
-            text-align: center;
-        }
-        .signatures table {
-            width: 100%;
-            margin: 0 auto;
-            border-collapse: collapse;
-        }
-        .signature-cell {
-            width: 50%;
-            vertical-align: bottom;
-            text-align: center;
-            padding: 0 20px;
-        }
-        .signature-box {
+        /* Assinaturas: layout previsível para engines de PDF */
+        .signatures { margin-top: 40px; width: 100%; page-break-inside: avoid; text-align: center; }
+        .signatures table { width: 100%; margin: 0 auto; border-collapse: collapse; table-layout: fixed; }
+        .signature-cell { width: 50%; vertical-align: middle; text-align: center; padding: 0 10px; }
+
+        /* container interno com altura fixa e posicionamento absoluto dos elementos */
+        .sig-inner {
             display: inline-block;
-            width: 100%;
+            width: 240px;    /* largura fixa para cada assinatura */
+            height: 140px;   /* altura fixa para alinhar tudo */
+            position: relative;
             text-align: center;
+            vertical-align: middle;
         }
-        .signature-line {
+        .sig-inner img {
+            position: absolute;
+            /* posiciona a base da imagem sempre na mesma distância da base do container,
+               garantindo alinhamento consistente com a linha abaixo */
+            bottom: 70px;             /* distância do rodapé do container até a base da imagem */
+            left: 50%;
+            transform: translateX(-50%);
+            height: 64px;            /* altura fixa para uniformizar as imagens */
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
             display: block;
-            width: 80%;
-            border-top: 1px solid #333;
-            margin: 5px auto 8px auto;
         }
+
+        /* linha de assinatura sempre em posição fixa relativa ao container */
+        .signature-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            bottom: 56px;           /* distância da base do container à linha */
+            border-top: 1px solid #333;
+            height: 0;
+            margin: 0 auto;
+        }
+
+        /* metadados sempre ancorados na base do container */
+        .signature-meta {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 8px;            /* distância do rodapé do container */
+            text-align: center;
+            max-width: 240px;
+            margin: 0 auto;
+        }
+        .signature-meta p { margin: 0; }
+        .signature-meta p.meta { font-size: 9pt; margin-top: 2px; color: #222; }
+        .signature-meta p.submeta { font-size: 8pt; margin-top: 4px; color: #666; }
+
     </style>
 </head>
 <body>
@@ -157,12 +107,21 @@
 <h2>Baseado em Normas Regulamentadoras (NRs)</h2>
 
 <div class="info-block">
-    <h3 th:text="${report.title}">Dados do Checklist</h3>
+    <h3>Dados do Emissor</h3>
+    <p><strong>Empresa:</strong> <span th:text="${generatingCompanyName}"></span></p>
+    <p><strong>CNPJ:</strong> <span th:text="${generatingCompanyCnpj}"></span></p>
+</div>
 
+<div class="info-block">
+    <h3>Dados da Empresa Cliente</h3>
     <p><strong>Empresa Cliente:</strong> <span th:text="${report.company?.name}"></span></p>
     <p><strong>CNPJ:</strong> <span th:text="${report.company?.cnpj}"></span></p>
     <p th:if="${report.unit != null}"><strong>Unidade:</strong> <span th:text="${report.unit.name}"></span></p>
     <p th:if="${report.sector != null}"><strong>Setor:</strong> <span th:text="${report.sector.name}"></span></p>
+</div>
+
+<div class="info-block">
+    <h3 th:text="${report.title}">Título do Documento</h3>
     <p><strong>Local da Inspeção:</strong> <span th:text="${report.local}"></span></p>
     <p><strong>Data da Inspeção:</strong> <span th:text="${#temporals.format(report.inspectionDate, 'dd/MM/yyyy')}"></span></p>
     <p><strong>Responsável:</strong> <span th:text="${report.technician?.name}"></span></p>
@@ -184,34 +143,29 @@
     </thead>
     <tbody>
     <th:block th:each="section : ${report.nrsSections}">
+        <tr class="section-header">
+            <td class="check-col"
+                th:text="${section.summaryStatus != null && section.summaryStatus.name() == 'CONFORME' ? 'X' : ''}"></td>
+            <td class="check-col"
+                th:text="${section.summaryStatus != null && section.summaryStatus.name() == 'NAO_CONFORME' ? 'X' : ''}"></td>
+            <td class="check-col"
+                th:text="${section.summaryStatus != null && section.summaryStatus.name() == 'NAO_APLICA' ? 'X' : ''}"></td>
+            <td class="item-col" th:text="${section.title}"></td>
+            <td class="just-col"></td>
+        </tr>
 
-        <th:block th:with="
-                    totalItems=${#lists.size(section.items)},
-                    naItems=${#lists.count(section.items, i -> i.status == T(com.gotree.API.entities.enums.NrsCheckStatus).NAO_APLICA)},
-                    ncItems=${#lists.count(section.items, i -> i.status == T(com.gotree.API.entities.enums.NrsCheckStatus).NAO_CONFORME)}
-                ">
-            <tr class="section-header">
-                <td class="check-col">
-                    <span th:text="${(totalItems > 0 && (naItems + ncItems == 0)) ? 'X' : ''}"></span>
-                </td>
-                <td class="check-col">
-                    <span th:text="${(ncItems > 0 && (naItems + ncItems == totalItems)) ? 'X' : ''}"></span>
-                </td>
-                <td class="check-col">
-                    <span th:text="${(naItems == totalItems && totalItems > 0) ? 'X' : ''}"></span>
-                </td>
-                <td class="item-col" th:text="${section.title}"></td>
-                <td class="just-col"></td>
-            </tr>
-        </th:block>
+        <tr class="item-row"
+            th:each="item : ${section.items != null ? section.items : T(java.util.Collections).emptyList()}">
+            <td class="check-col"
+                th:text="${item != null && item.status != null && item.status.name() == 'CONFORME' ? 'X' : ''}"></td>
+            <td class="check-col"
+                th:text="${item != null && item.status != null && item.status.name() == 'NAO_CONFORME' ? 'X' : ''}"></td>
+            <td class="check-col"
+                th:text="${item != null && item.status != null && item.status.name() == 'NAO_APLICA' ? 'X' : ''}"></td>
 
-        <tr class="item-row" th:each="item : ${section.items}">
-            <td class="check-col" th:text="${item.status == T(com.gotree.API.entities.enums.NrsCheckStatus).CONFORME ? 'X' : ''}"></td>
-            <td class="check-col" th:text="${item.status == T(com.gotree.API.entities.enums.NrsCheckStatus).NAO_CONFORME ? 'X' : ''}"></td>
-            <td class="check-col" th:text="${item.status == T(com.gotree.API.entities.enums.NrsCheckStatus).NAO_APLICA ? 'X' : ''}"></td>
-            <td class="item-col" th:text="${item.description}"></td>
-            <td class="just-col" th:text="${item.justification}"></td> </tr>
-
+            <td class="item-col" th:text="${item != null ? item.description : 'ERRO: Item nulo'}"></td>
+            <td class="just-col" th:text="${item != null ? item.justification : ''}"></td>
+        </tr>
     </th:block>
     </tbody>
 </table>
@@ -226,56 +180,45 @@
     <p th:text="${report.observations}"></p>
 </div>
 
+<!-- ASSINATURAS: LEFT = TÉCNICO, RIGHT = CLIENTE -->
 <div class="signatures">
     <table>
         <tbody>
         <tr>
-            <td class="signature-cell">
-                <div class="signature-box" style="text-align: center;">
+            <!-- Técnico (esquerda) -->
+            <td class="signature-cell" style="vertical-align: middle;">
+                <div class="sig-inner">
                     <img th:if="${report.technicianSignatureImageBase64}"
                          th:src="'data:image/png;base64,' + ${report.technicianSignatureImageBase64}"
-                         alt="Assinatura do Técnico"
-                         style="max-height: 40px;"/>
-
-                    <div class="signature-line"
-                         style="width: 70%; margin: 5px auto 8px auto; border-top: 1px solid #333;"></div>
-
-                    <p th:text="${report.technician?.name}" style="margin: 0; font-weight: bold; font-size: 9pt;"></p>
-                    <p th:if="${report.technician?.conselhoClasse != null}"
-                       style="font-size: 8pt; margin: 2px 0 0 0;"
-                       th:text="${report.technician.conselhoClasse + ' | ' + report.technician.siglaConselhoClasse}"></p>
-                    <p th:if="${report.technician?.especialidade != null}"
-                       style="font-size: 8pt; margin: 2px 0 0 0;"
-                       th:text="${report.technician.especialidade}"></p>
-                    <p th:if="${report.technicianSignedAt != null}"
-                       style="font-size: 7pt; margin: 5px 0 0 0; color: #666;">
-                        <span th:text="${'Assinado em: ' + #temporals.format(report.technicianSignedAt, 'dd/MM/yyyy HH:mm:ss')}"></span>
-                    </p>
+                         alt="Assinatura do Técnico" />
+                    <span class="signature-line"></span>
+                    <div class="signature-meta">
+                        <p th:text="${report.technician?.name}" style="font-weight: bold; font-size: 9pt;"></p>
+                        <p th:if="${report.responsavelRegistro != null && report.responsavelSigla != null}" class="meta"
+                           th:text="${report.responsavelSigla + ': ' + report.responsavelRegistro}"></p>
+                        <p th:if="${report.technician?.especialidade != null}" class="meta"
+                           th:text="${report.technician.especialidade}"></p>
+                        <p th:if="${report.technicianSignedAt != null}" class="submeta"
+                           th:text="${'Assinado em: ' + #temporals.format(report.technicianSignedAt, 'dd/MM/yyyy HH:mm:ss')}"></p>
+                    </div>
                 </div>
             </td>
 
-            <td class="signature-cell">
-                <div class="signature-box" style="text-align: center;">
+            <!-- Cliente (direita) -->
+            <td class="signature-cell" style="vertical-align: middle;">
+                <div class="sig-inner">
                     <img th:if="${report.clientSignatureImageBase64}"
                          th:src="'data:image/png;base64,' + ${report.clientSignatureImageBase64}"
-                         alt="Assinatura do Cliente"
-                         style="max-height: 40px;"/>
-
-                    <div class="signature-line"
-                         style="width: 70%; margin: 5px auto 8px auto; border-top: 1px solid #333;"></div>
-
-                    <p th:text="${report.clientSignerName}" style="margin: 0; font-weight: bold; font-size: 9pt;"></p>
-                    <p style="font-size: 8pt; margin: 2px 0 0 0;">Responsável</p>
-
-                    <p th:if="${report.clientSignatureLatitude != null and report.clientSignedAt != null}"
-                       style="font-size: 7pt; margin: 5px 0 0 0; color: #666;">
-
-                            <span th:text="${'Assinado em: ' + #temporals.format(report.clientSignedAt, 'dd/MM/yyyy HH:mm:ss')}"
-                                  style="display: block;"></span>
-
-                        <span th:text="${'Lat ' + report.clientSignatureLatitude + ', Lon ' + report.clientSignatureLongitude}"
-                              style="display: block; margin-top: 2px;"></span>
-                    </p>
+                         alt="Assinatura do Cliente" />
+                    <span class="signature-line"></span>
+                    <div class="signature-meta">
+                        <p th:text="${report.clientSignerName}" style="font-weight: bold; font-size: 9pt;"></p>
+                        <p class="meta">Responsável / Cliente</p>
+                        <p th:if="${report.clientSignedAt != null}" class="submeta">
+                            <span th:text="${'Assinado em: ' + #temporals.format(report.clientSignedAt, 'dd/MM/yyyy HH:mm:ss')}" style="display:block;"></span>
+                            <span th:if="${report.clientSignatureLatitude != null}" th:text="${'Lat ' + report.clientSignatureLatitude + ', Lon ' + report.clientSignatureLongitude}" style="display:block; margin-top:2px;"></span>
+                        </p>
+                    </div>
                 </div>
             </td>
         </tr>

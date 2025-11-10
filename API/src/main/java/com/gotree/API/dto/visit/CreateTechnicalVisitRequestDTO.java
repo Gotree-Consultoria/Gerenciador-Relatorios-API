@@ -1,5 +1,6 @@
 package com.gotree.API.dto.visit;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -12,6 +13,8 @@ public class CreateTechnicalVisitRequestDTO {
     private Long unitId;
     private Long sectorId;
     private String location;
+
+    @NotNull(message = "A data da visita é obrigatória.")
     private LocalDate visitDate;
     private LocalTime startTime;
     private String technicalReferences;

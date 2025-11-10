@@ -26,17 +26,15 @@ public class ReportController {
         this.inspectionReportService = inspectionReportService;
     }
 
-    // --- ENDPOINT DO CHECKLIST ANTIGO (COM AJUSTE) ---
+    // --- ENDPOINT DO CHECKLIST---
     @PostMapping("/inspection-reports")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> saveInspectionReport(@Valid @RequestBody SaveInspectionReportRequestDTO dto,
                                                   Authentication authentication) {
-        // --- AJUSTE AQUI ---
         // Extrai o usuário e passa para o serviço (para habilitar a refatoração)
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         User currentUser = userDetails.getUser();
         InspectionReport savedReport = inspectionReportService.saveReportAndGeneratePdf(dto, currentUser);
-        // --- FIM DO AJUSTE ---
 
         Map<String, Object> response = new HashMap<>();
         response.put("message", "Relatório salvo com sucesso!");
@@ -45,7 +43,7 @@ public class ReportController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    // --- (NOVO) ENDPOINT PARA O CHECKLIST C/NC/NA ---
+    // --- ENDPOINT DO CHECKLIST-NR C/NC/NA ---
     @PostMapping("/inspection-reports/nrs")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> saveNrsInspectionReport(

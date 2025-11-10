@@ -54,7 +54,14 @@ public class DocumentAggregationService {
                 .map(report -> {
                     DocumentSummaryDTO dto = new DocumentSummaryDTO();
                     dto.setId(report.getId());
-                    dto.setDocumentType("Checklist de Inspeção");
+
+                    // Define o nome com base no nome do arquivo PDF
+                    String docType = "Checklist de Inspeção"; // Nome padrão
+                    if (report.getPdfPath() != null && report.getPdfPath().contains("nrs-checklist-template")) {
+                        docType = "Checklist de Inspeção NR";
+                    }
+                    dto.setDocumentType(docType);
+
                     dto.setTitle(report.getTitle());
                     dto.setClientName(report.getCompany() != null ? report.getCompany().getName() : "N/A");
                     dto.setCreationDate(report.getInspectionDate());
@@ -141,19 +148,26 @@ public class DocumentAggregationService {
             return pdfBytes;
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
         // Se o código chegou aqui, é um "checklist" ou "visit".
         // Precisamos garantir que o fileName não seja nulo ANTES de usá-lo.
         if (fileName == null || fileName.isBlank()) {
             System.err.println("--- ERRO DEBUG [Agregação]: fileName está nulo ou em branco para o tipo: " + type); // DEBUG
             throw new RuntimeException("Este documento não possui um PDF associado.");
         }
-        // --- FIM DA CORREÇÃO ---
 
         // Agora, este código só é executado se tivermos um fileName válido.
-        System.out.println("--- DEBUG [Agregação]: Carregando arquivo do disco: " + fileName); // DEBUG
-        // Path path = Paths.get(fileStoragePath, fileName); // EXCLUIR SE PASSAR NOS TESTES
-        Path path = Paths.get(fileName);
+        Path path;
+        if ("checklist".equalsIgnoreCase(type)) {
+            // O InspectionReportService salva o CAMINHO COMPLETO
+            path = Paths.get(fileName);
+        } else if ("visit".equalsIgnoreCase(type)) {
+            // O TechnicalVisitService salva SÓ O NOME DO ARQUIVO
+            path = Paths.get(fileStoragePath, fileName);
+        } else {
+            // Segurança: caso um tipo não mapeado chegue aqui
+            throw new IOException("Lógica de caminho de PDF não definida para o tipo: " + type);
+        }
+
         if (!Files.exists(path)) {
             throw new IOException("Arquivo PDF não encontrado no caminho: " + path);
         }

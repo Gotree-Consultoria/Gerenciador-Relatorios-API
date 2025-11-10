@@ -1,5 +1,6 @@
 package com.gotree.API.entities;
 
+import com.gotree.API.entities.enums.NrsCheckStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.util.ArrayList;
@@ -15,6 +16,10 @@ public class NrsSection {
     private Long id;
 
     private String title; // Ex: "Higiene e Limpeza (NR 24...)"
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "summary_status")
+    private NrsCheckStatus summaryStatus; // Armazena C, NC ou NA para a seção inteira
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "report_id") // <-- Link para o InspectionReport principal

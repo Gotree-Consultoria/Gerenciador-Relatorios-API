@@ -3,93 +3,94 @@
 <head>
     <meta charset="UTF-8"/>
     <style>
-        @page {
-            size: A4 landscape;
-            margin: 0.5cm;
-        }
+        @page { size: A4 landscape; margin: 0.5cm; }
         body { font-family: 'Montserrat', sans-serif; font-size: 10pt; color: #333; }
         h1 { font-size: 14pt; text-align: center; margin-bottom: 20px; text-transform: uppercase; }
-        .info-block {
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 15px;
-        }
+        .info-block { border: 1px solid #ccc; padding: 10px; margin-bottom: 15px; }
         .info-block p { margin: 5px 0; }
         h2 { font-size: 11pt; background-color: #f2f2f2; padding: 6px; margin-top: 20px; margin-bottom: 10px; }
         .summary-text { text-align: justify; }
 
         /* Tabela de achados */
-        .findings-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-            font-size: 8pt;
-        }
-        .findings-table th, .findings-table td {
-            border: 1px solid #999;
-            padding: 5px;
-            text-align: left;
-            vertical-align: top;
-        }
+        .findings-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 8pt; }
+        .findings-table th, .findings-table td { border: 1px solid #999; padding: 5px; text-align: left; vertical-align: top; }
         .findings-table th { background-color: #f2f2f2; }
         .findings-table tr { page-break-inside: avoid; }
-        .findings-table td {
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            hyphens: auto;
-        }
-
+        .findings-table td { word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; }
 
         /* Célula da foto */
-        .findings-table .photo-cell {
-            text-align: center;
-        }
-        /* AJUSTE 1: Regra para a imagem do registro fotográfico */
+        .findings-table .photo-cell { text-align: center; }
         .findings-table .photo-cell img {
-            display: block;
-            margin: 0 auto 5px auto;
-            max-width: 6.8cm !important;
-            max-height: 5cm !important; /* opcional — evita fotos verticais gigantes */
-            width: auto !important;
-            height: auto !important;
-            object-fit: contain;
-            text-align: center;
+            display: block; margin: 0 auto 5px auto;
+            max-width: 6.8cm !important; max-height: 5cm !important;
+            width: auto !important; height: auto !important; object-fit: contain;
         }
 
-        /* Contêiner principal da seção de assinaturas */
-        .signatures {
-            margin-top: 25px;
-            width: 100%;
-            page-break-inside: avoid;
-            text-align: center;
-        }
+        /* Assinaturas */
+        .signatures { margin-top: 25px; width: 100%; page-break-inside: avoid; text-align: center; }
+        .signatures table { width: 90%; margin: 0 auto; border-collapse: collapse; table-layout: fixed; }
+        .signature-cell { width: 50%; vertical-align: middle; text-align: center; padding: 0 10px; }
 
-        .signatures table {
-            width: 90%;              /* respiro lateral */
-            margin: 0 auto;          /* centraliza a tabela */
-            border-collapse: collapse; /* remove espaçamento */
-        }
-
-        .signature-cell {
-            width: 50%;
-            vertical-align: bottom;
-            text-align: center;
-        }
-
-        .signature-box {
+        /* container interno com altura fixa e posicionamento absoluto dos elementos */
+        .sig-inner {
             display: inline-block;
-            width: 100%;
+            width: 320px;        /* largura fixa para cada assinatura em landscape */
+            height: 160px;       /* aumenta altura para dar espaço e evitar overlap */
+            position: relative;
             text-align: center;
+            vertical-align: middle;
+            margin: 0 auto;
         }
 
-        .signature-line {
+        /* imagem centralizada e posicionada pela base (garante baseline uniforme) */
+        .sig-inner img {
+            position: absolute;
+            bottom: 90px;        /* base da imagem mantida acima da linha */
+            left: 50%;
+            transform: translateX(-50%);
+            height: 64px;        /* altura uniforme para todas as assinaturas */
+            max-height: 64px;
+            width: auto;
+            max-width: 100%;
+            object-fit: contain;
             display: block;
-            width: 60%;
-            border-top: 1px solid #333;
-            margin: 5px auto 8px auto; /* força centralização e visibilidade */
+            z-index: 3;
         }
 
+        /* linha de assinatura fixa e centralizada */
+        .signature-line {
+            position: absolute;
+            left: 10%;
+            right: 10%;
+            bottom: 72px;        /* linha fica abaixo da imagem e acima dos metadados */
+            border-top: 1px solid #333;
+            height: 0;
+            margin: 0 auto;
+            z-index: 2;
+        }
 
+        /* metadados (nome, registro, data) sempre ancorados na base, abaixo da linha */
+        .signature-meta {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 8px;         /* garante que o nome fique visivelmente abaixo da linha */
+            text-align: center;
+            max-width: 320px;
+            margin: 0 auto;
+            z-index: 4;
+        }
+        .signature-meta p { margin: 0; }
+        .signature-meta p.meta { font-size: 9pt; margin-top: 2px; color: #222; }
+        .signature-meta p.submeta { font-size: 8pt; margin-top: 4px; color: #666; }
+
+        /* fallback visual quando não há assinatura - mantém espaço e linha visível */
+        .sig-empty .signature-line { border-top-style: dashed; opacity: 0.6; }
+        .sig-empty img { display: none; }
+
+        @media print {
+            .sig-inner { -webkit-print-color-adjust: exact; }
+        }
 
     </style>
 </head>
@@ -114,7 +115,8 @@
         <strong>Hora Final:</strong> <span th:text="${#temporals.format(visit.endTime, 'HH:mm')}"></span>
     </p>
     <p th:if="${visit.endTime != null and visit.startTime != null}">
-        <strong>Tempo Total Estimado:</strong> <span th:text="${T(java.time.Duration).between(visit.startTime, visit.endTime).toMinutes() + ' minutos'}"></span>
+        <strong>Tempo Total Estimado:</strong>
+        <span th:text="${T(java.time.Duration).between(visit.startTime, visit.endTime).toMinutes() + ' minutos'}"></span>
     </p>
 </div>
 
@@ -126,20 +128,19 @@
 </div>
 
 <div>
-<h2>Referências Técnicas Utilizadas</h2>
-<p style="white-space: pre-wrap; text-align: justify; line-height: 0.8;">
-    INSPEÇÃO Meio Ambiente<br/>
-    INSPEÇÃO NR 01 - Documentações<br/>
-    INSPEÇÃO NR 06 - EPI (Equipamento de Proteção Individual)<br/>
-    INSPEÇÃO NR 06 - EPC (Equipamento de Proteção Coletiva)<br/>
-    INSPEÇÃO NR 07 - Documentações<br/>
-    INSPEÇÃO NR 11 - Transporte, movimentação, manuseio e armazenagem de materiais<br/>
-    INSPEÇÃO NR 12 - Máquinas e equipamentos<br/>
-    INSPEÇÃO NR 23 - Proteção e Combate Contra Incêndios<br/>
-    INSPEÇÃO NR 35 - Trabalho em altura
-</p>
+    <h2>Referências Técnicas Utilizadas</h2>
+    <p style="white-space: pre-wrap; text-align: justify; line-height: 0.8;">
+        INSPEÇÃO Meio Ambiente<br/>
+        INSPEÇÃO NR 01 - Documentações<br/>
+        INSPEÇÃO NR 06 - EPI (Equipamento de Proteção Individual)<br/>
+        INSPEÇÃO NR 06 - EPC (Equipamento de Proteção Coletiva)<br/>
+        INSPEÇÃO NR 07 - Documentações<br/>
+        INSPEÇÃO NR 11 - Transporte, movimentação, manuseio e armazenagem de materiais<br/>
+        INSPEÇÃO NR 12 - Máquinas e equipamentos<br/>
+        INSPEÇÃO NR 23 - Proteção e Combate Contra Incêndios<br/>
+        INSPEÇÃO NR 35 - Trabalho em altura
+    </p>
 </div>
-
 
 <h2>Resumo Geral da Visita</h2>
 <p class="summary-text" th:text="${visit.summary}"></p>
@@ -148,28 +149,20 @@
     <h2>Registro Fotográfico e Recomendações</h2>
     <table class="findings-table" style="table-layout: fixed; width: 100%;">
         <colgroup>
-            <col style="width: 7.0cm;" />  <!-- Registro Fotográfico -->
-            <col style="width: 3cm;" />  <!-- Descrição -->
-            <col style="width: 3.5cm;" />  <!-- Consequências -->
-            <col style="width: 3cm;" />    <!-- Orientação Legal -->
-            <col style="width: 2.3cm;" />  <!-- Penalidades -->
-            <col style="width: 2.5cm;" />  <!-- Responsável -->
-            <col style="width: 2cm;" />    <!-- Prioridade -->
-            <col style="width: 2cm;" />    <!-- Prazo -->
-            <col style="width: 3cm;" />  <!-- Reincidência -->
+            <col style="width: 7.0cm;" />
+            <col style="width: 3cm;" />
+            <col style="width: 3.5cm;" />
+            <col style="width: 3cm;" />
+            <col style="width: 2.3cm;" />
+            <col style="width: 2.5cm;" />
+            <col style="width: 2cm;" />
+            <col style="width: 2cm;" />
+            <col style="width: 3cm;" />
         </colgroup>
-
         <thead>
         <tr>
-            <th>Registro Fotográfico</th>
-            <th>Descrição</th>
-            <th>Consequências</th>
-            <th>Orientação Legal</th>
-            <th>Penalidades</th>
-            <th>Responsável</th>
-            <th>Prioridade</th>
-            <th>Prazo</th>
-            <th>Reincidência</th>
+            <th>Registro Fotográfico</th><th>Descrição</th><th>Consequências</th><th>Orientação Legal</th>
+            <th>Penalidades</th><th>Responsável</th><th>Prioridade</th><th>Prazo</th><th>Reincidência</th>
         </tr>
         </thead>
         <tbody>
@@ -178,87 +171,71 @@
                 <img th:if="${finding.photoPath1}" th:src="'file:///' + ${finding.photoPath1}" />
                 <img th:if="${finding.photoPath2}" th:src="'file:///' + ${finding.photoPath2}" />
             </td>
-            <td th:text="${finding.description}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.consequences}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.legalGuidance}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.penalties}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.responsible}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.priority}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.deadline != null ? #temporals.format(finding.deadline, 'dd/MM/yyyy') : ''}" style="word-wrap: break-word;"></td>
-            <td th:text="${finding.recurrence ? 'Sim' : 'Não'}" style="word-wrap: break-word;"></td>
+            <td th:text="${finding.description}"></td>
+            <td th:text="${finding.consequences}"></td>
+            <td th:text="${finding.legalGuidance}"></td>
+            <td th:text="${finding.penalties}"></td>
+            <td th:text="${finding.responsible}"></td>
+            <td th:text="${finding.priority}"></td>
+            <td th:text="${finding.deadline != null ? #temporals.format(finding.deadline, 'dd/MM/yyyy') : ''}"></td>
+            <td th:text="${finding.recurrence ? 'Sim' : 'Não'}"></td>
         </tr>
-
         </tbody>
     </table>
 </div>
 
 <div th:if="${visit.nextVisitDate != null}" style="page-break-inside: avoid; margin-top: 30px;">
     <h2>Agendamento da Próxima Visita</h2>
-
     <div class="info-block" style="border-style: dashed; background-color: #fcfcfc;">
-        <p>
-            <strong>Data Programada:</strong>
-            <span th:text="${#temporals.format(visit.nextVisitDate, 'dd/MM/yyyy')}"></span>
-        </p>
+        <p><strong>Data Programada:</strong> <span th:text="${#temporals.format(visit.nextVisitDate, 'dd/MM/yyyy')}"></span></p>
     </div>
 </div>
 
+<!-- ASSINATURAS -->
 <div class="signatures">
     <table>
         <tbody>
         <tr>
-            <td class="signature-cell">
-                <div class="signature-box" style="text-align: center;"> <img th:if="${visit.technicianSignatureImageBase64}"
-                                                                             th:src="'data:image/png;base64,' + ${visit.technicianSignatureImageBase64}"
-                                                                             alt="Assinatura do Técnico"
-                                                                             style="max-height: 40px;"/>
-
-                    <div class="signature-line"
-                         style="width: 70%; margin: 5px auto 8px auto; border-top: 1px solid #333;"></div>
-
-                    <p th:text="${visit.technician?.name}" style="margin: 0; font-weight: bold;"></p>
-                    <p th:if="${visit.technician?.conselhoClasse != null}"
-                       style="font-size: 9pt; margin: 0;"
-                       th:text="${visit.technician.conselhoClasse + ' | ' + visit.technician.siglaConselhoClasse}"></p>
-                    <p th:if="${visit.technician?.especialidade != null}"
-                       style="font-size: 9pt; margin: 0;"
-                       th:text="${visit.technician.especialidade}"></p>
-                    <p th:if="${visit.technicianSignedAt != null}"
-                       style="font-size: 8pt; margin: 5px 0 0 0; color: #666;">
-                        <span th:text="${'Assinado em: ' + #temporals.format(visit.technicianSignedAt, 'dd/MM/yyyy HH:mm:ss')}"></span>
-                    </p>
+            <!-- Técnico (esquerda) -->
+            <td class="signature-cell" th:classappend="${visit.technicianSignatureImageBase64 == null} ? ' sig-empty' : ''">
+                <div class="sig-inner">
+                    <img th:if="${visit.technicianSignatureImageBase64}"
+                         th:src="'data:image/png;base64,' + ${visit.technicianSignatureImageBase64}"
+                         alt="Assinatura do Técnico" />
+                    <span class="signature-line"></span>
+                    <div class="signature-meta">
+                        <p th:text="${visit.technician?.name}" style="font-weight: bold;"></p>
+                        <p th:if="${visit.technician?.conselhoClasse != null}" class="meta"
+                           th:text="${visit.technician.conselhoClasse + ' | ' + visit.technician.siglaConselhoClasse}"></p>
+                        <p th:if="${visit.technician?.especialidade != null}" class="meta"
+                           th:text="${visit.technician.especialidade}"></p>
+                        <p th:if="${visit.technicianSignedAt != null}" class="submeta"
+                           th:text="${'Assinado em: ' + #temporals.format(visit.technicianSignedAt, 'dd/MM/yyyy HH:mm:ss')}"></p>
+                    </div>
                 </div>
             </td>
 
-            <td class="signature-cell">
-                <div class="signature-box" style="text-align: center;"> <img th:if="${visit.clientSignatureImageBase64}"
-                                                                             th:src="'data:image/png;base64,' + ${visit.clientSignatureImageBase64}"
-                                                                             alt="Assinatura do Cliente"
-                                                                             style="max-height: 40px;"/>
-
-                    <div class="signature-line"
-                         style="width: 70%; margin: 5px auto 8px auto; border-top: 1px solid #333;"></div>
-
-                    <p th:text="${visit.clientSignerName}" style="margin: 0; font-weight: bold;"></p>
-                    <p style="font-size: 9pt; margin: 0;">Responsável</p>
-
-                    <p th:if="${visit.clientSignatureLatitude != null and visit.clientSignedAt != null}"
-                       style="font-size: 8pt; margin: 5px 0 0 0; color: #666;">
-
-                        <span th:text="${'Assinado em: ' + #temporals.format(visit.clientSignedAt, 'dd/MM/yyyy HH:mm:ss')}"
-                              style="display: block;"></span>
-
-                        <span th:text="${'Lat ' + visit.clientSignatureLatitude + ', Lon ' + visit.clientSignatureLongitude}"
-                              style="display: block; margin-top: 2px;"></span>
-
-                    </p>
+            <!-- Cliente (direita) -->
+            <td class="signature-cell" th:classappend="${visit.clientSignatureImageBase64 == null} ? ' sig-empty' : ''">
+                <div class="sig-inner">
+                    <img th:if="${visit.clientSignatureImageBase64}"
+                         th:src="'data:image/png;base64,' + ${visit.clientSignatureImageBase64}"
+                         alt="Assinatura do Cliente" />
+                    <span class="signature-line"></span>
+                    <div class="signature-meta">
+                        <p th:text="${visit.clientSignerName}" style="font-weight: bold;"></p>
+                        <p class="meta">Responsável</p>
+                        <p th:if="${visit.clientSignedAt != null}" class="submeta">
+                            <span th:text="${'Assinado em: ' + #temporals.format(visit.clientSignedAt, 'dd/MM/yyyy HH:mm:ss')}" style="display:block;"></span>
+                            <span th:if="${visit.clientSignatureLatitude != null}" th:text="${'Lat ' + visit.clientSignatureLatitude + ', Lon ' + visit.clientSignatureLongitude}" style="display:block; margin-top:2px;"></span>
+                        </p>
+                    </div>
                 </div>
             </td>
         </tr>
         </tbody>
     </table>
 </div>
-
 
 </body>
 </html>

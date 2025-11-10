@@ -16,6 +16,7 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,6 +33,10 @@ public class InspectionReportService {
 
     @Value("${file.storage.path}")
     private String fileStoragePath;
+    @Value("${app.generating-company.name}")
+    private String generatingCompanyName;
+    @Value("${app.generating-company.cnpj}")
+    private String generatingCompanyCnpj;
 
     public InspectionReportService(InspectionReportRepository inspectionReportRepository,
                                    ReportService reportService,
@@ -46,7 +51,7 @@ public class InspectionReportService {
     }
 
     // ==========================================
-    // --- MÉTODO PÚBLICO: CHECKLIST ANTIGO ---
+    // --- CHECKLIST ---
     // ==========================================
     @Transactional
     public InspectionReport saveReportAndGeneratePdf(SaveInspectionReportRequestDTO dto, User technician) {
@@ -83,11 +88,11 @@ public class InspectionReportService {
         }
 
         // 3. Gera o PDF e salva
-        return generateAndSavePdf(report, "checklist-template"); // Template antigo
+        return generateAndSavePdf(report, "checklist-inspensao-template");
     }
 
     // ==========================================
-    // --- MÉTODO PÚBLICO: NOVO CHECKLIST C/NC/NA ---
+    // --- CHECKLIST-NR ---
     // ==========================================
     @Transactional
     public InspectionReport saveNrsReportAndGeneratePdf(SaveNrsReportRequestDTO dto, User technician) {
@@ -108,6 +113,7 @@ public class InspectionReportService {
                 nrsSection.setTitle(sectionDto.getTitle());
                 nrsSection.setReport(report);
 
+                // 1. Mapeia os itens filhos (como antes)
                 if (sectionDto.getItems() != null) {
                     for (NrsChecklistItemDTO itemDto : sectionDto.getItems()) {
                         NrsItem nrsItem = new NrsItem();
@@ -118,6 +124,10 @@ public class InspectionReportService {
                         nrsSection.getItems().add(nrsItem);
                     }
                 }
+
+                // 2. (NOVO) Calcula e salva o status da seção-pai
+                nrsSection.setSummaryStatus(calculateSectionSummaryStatus(nrsSection.getItems()));
+
                 report.getNrsSections().add(nrsSection);
             }
         }
@@ -130,6 +140,62 @@ public class InspectionReportService {
     // ==========================================
     // --- MÉTODOS AUXILIARES PRIVADOS ---
     // ==========================================
+
+    /**
+     * Calcula o status resumo de uma Seção baseado na sua regra de negócio.
+     */
+    private NrsCheckStatus calculateSectionSummaryStatus(List<NrsItem> items) {
+        if (items == null || items.isEmpty()) {
+            return null; // Ou NrsCheckStatus.NAO_APLICA, dependendo da sua regra
+        }
+
+        int totalItems = items.size();
+        int naCount = 0;
+        int ncCount = 0;
+        int cCount = 0;
+
+        for (NrsItem item : items) {
+            if (item == null || item.getStatus() == null) {
+                continue; // Ignora itens nulos ou com status nulo
+            }
+            switch (item.getStatus()) {
+                case NAO_APLICA:
+                    naCount++;
+                    break;
+                case NAO_CONFORME:
+                    ncCount++;
+                    break;
+                case CONFORME:
+                    cCount++;
+                    break;
+            }
+        }
+
+        // Sua Regra: "se todos as opções abaixo estiverem marcadas como NA, o mesmo deve acontecer..."
+        if (naCount == totalItems) {
+            return NrsCheckStatus.NAO_APLICA;
+        }
+
+        // Sua Regra: "se todos as opções abaixo estiverem marcadas como NC..."
+        // (Assumindo que "todos" significa "todos os que não são NA")
+        if (ncCount > 0 && (ncCount + naCount) == totalItems) {
+            return NrsCheckStatus.NAO_CONFORME;
+        }
+
+        // Se chegou aqui e não tem NC, é CONFORME
+        if (cCount > 0 && ncCount == 0) {
+            return NrsCheckStatus.CONFORME;
+        }
+
+        // Se houver qualquer mistura (ex: C e NC), podemos retornar null ou um status "MISTO"
+        // Para o seu template (C, NC, NA), o CONFORME é o mais provável.
+        if (cCount > 0) {
+            return NrsCheckStatus.CONFORME;
+        }
+
+        // Se não for nem C, nem NC, nem NA (ex: todos nulos)
+        return null;
+    }
 
     /**
      * Constrói a entidade InspectionReport com todos os dados comuns
@@ -187,7 +253,8 @@ public class InspectionReportService {
         Map<String, Object> templateData = new HashMap<>();
         templateData.put("report", savedReport);
         templateData.put("company", savedReport.getCompany());
-        // (Adicione 'generatingCompanyName' etc. se o template precisar)
+        templateData.put("generatingCompanyName", generatingCompanyName);
+        templateData.put("generatingCompanyCnpj", generatingCompanyCnpj);
 
         byte[] pdfBytes = reportService.generatePdfFromHtml(templateName, templateData);
 
