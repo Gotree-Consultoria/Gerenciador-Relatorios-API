@@ -9,4 +9,10 @@ import java.util.List;
 public interface AepReportRepository extends JpaRepository<AepReport, Long> {
 
     List<AepReport> findAllByEvaluator(User evaluator);
+
+    // (NOVO) Para KPIs do Usuário
+    long countByEvaluator(User evaluator);
+
+    // (NOVO) Para KPIs do Admin
+    long countByEvaluatorAndCompanyId(User evaluator, Long companyId);
 }

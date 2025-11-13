@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.swing.*;
 import java.util.Map;
 
 /**
@@ -57,7 +56,7 @@ public class AuthController {
 
 		// Após autenticar pega os dados do usuário
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-		User user = userDetails.getUser();
+		User user = userDetails.user();
 
 		System.out.println(user.getPasswordResetRequired());
 

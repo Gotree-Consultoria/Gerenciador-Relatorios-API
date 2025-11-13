@@ -15,4 +15,6 @@ public class AgendaResponseDTO {
 
     private LocalDate originalVisitDate; // A "Data original"
     private Long sourceVisitId; // O ID do relatório de visita original
+
+    private String responsibleName;
 }

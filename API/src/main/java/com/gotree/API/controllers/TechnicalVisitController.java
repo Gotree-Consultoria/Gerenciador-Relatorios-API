@@ -55,7 +55,7 @@ public class TechnicalVisitController {
     public ResponseEntity<?> createVisit(@RequestBody @Valid CreateTechnicalVisitRequestDTO dto, Authentication authentication) {
         // Obtém os detalhes do utilizador autenticado de forma segura.
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User technician = userDetails.getUser();
+        User technician = userDetails.user();
 
         // Delega toda a lógica de negócio (criação, geração de PDF, salvamento) para o serviço.
         TechnicalVisit createdVisit = technicalVisitService.createAndGeneratePdf(dto, technician);
@@ -79,7 +79,7 @@ public class TechnicalVisitController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<TechnicalVisitResponseDTO>> findMyVisits(Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User technician = userDetails.getUser();
+        User technician = userDetails.user();
 
         List<TechnicalVisit> visits = technicalVisitService.findAllByTechnician(technician);
 

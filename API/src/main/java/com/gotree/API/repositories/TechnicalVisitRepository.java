@@ -35,7 +35,26 @@ public interface TechnicalVisitRepository extends JpaRepository<TechnicalVisit, 
             "LEFT JOIN FETCH v.clientCompany " +
             "LEFT JOIN FETCH v.unit " +
             "LEFT JOIN FETCH v.sector " +
+            "LEFT JOIN FETCH v.technician " +
             "WHERE v.nextVisitDate IS NOT NULL " +
             "ORDER BY v.nextVisitDate ASC")
     List<TechnicalVisit> findAllScheduledWithCompany();
+
+    // (NOVO) Para KPIs do Usuário
+    long countByTechnician(User technician);
+
+    // (NOVO) Para KPIs do Admin
+    long countByTechnicianAndClientCompanyId(User technician, Long companyId);
+
+    // (NOVO) Calcula o tempo total em segundos para um usuário
+    @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (t.end_time - t.start_time))), 0) " +
+            "FROM tb_technical_visit t WHERE t.technician_id = :userId AND t.end_time IS NOT NULL",
+            nativeQuery = true) // <-- Adicionado
+    long findTotalVisitDurationInSeconds(@Param("userId") Long userId); // <-- Mudado de User para Long
+
+    // (NOVO) Calcula o tempo total em segundos para todos
+    @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (t.end_time - t.start_time))), 0) " +
+            "FROM tb_technical_visit t WHERE t.end_time IS NOT NULL",
+            nativeQuery = true) // <-- Adicionado
+    long findTotalVisitDurationInSeconds();
 }

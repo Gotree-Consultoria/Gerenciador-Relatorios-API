@@ -201,14 +201,11 @@ public class TechnicalVisitService {
                 System.err.println("Prioridade inválida recebida: " + dto.getPriority());
             }
         }
-        // Se a prioridade for nula ou em branco, ela simplesmente não será definida, evitando erros.
+        // Se a prioridade for nula ou em branco, ela simplesmente não será definida, evitando, erros.
 
         return finding;
     }
 
-    /**
-     * Metodo auxiliar para remover o prefixo 'data:image/...' de uma string Base64.
-     */
     /**
      * Remove o prefixo 'data:image/...' de uma string Base64.
      *

@@ -42,7 +42,7 @@ public class AepController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> createAepReport(@RequestBody @Valid AepRequestDTO dto, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User evaluator = userDetails.getUser();
+        User evaluator = userDetails.user();
 
         // Chama o serviço para SALVAR os dados (sem ID existente)
         AepReport createdAep = aepService.saveAepData(dto, evaluator, null);
@@ -67,7 +67,7 @@ public class AepController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> updateAepReport(@PathVariable Long id, @RequestBody @Valid AepRequestDTO dto, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User evaluator = userDetails.getUser();
+        User evaluator = userDetails.user();
 
         // Chama o serviço para ATUALIZAR os dados (com ID existente)
         AepReport updatedAep = aepService.saveAepData(dto, evaluator, id);
@@ -91,7 +91,7 @@ public class AepController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<AepDetailDTO> getAepReportDetails(@PathVariable Long id, Authentication authentication) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
-        User currentUser = userDetails.getUser();
+        User currentUser = userDetails.user();
 
         AepDetailDTO aepDetails = aepService.findAepDetails(id, currentUser);
 

@@ -166,7 +166,7 @@ public class UserController {
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
 		// 2. A partir do CustomUserDetails, pegamos a entidade User completa.
-		User loggedInUser = userDetails.getUser();
+		User loggedInUser = userDetails.user();
 
 		// 3. Usamos o mapper (que já deve estar injetado no seu controller)
 		//    para converter a entidade User em um DTO de resposta seguro.

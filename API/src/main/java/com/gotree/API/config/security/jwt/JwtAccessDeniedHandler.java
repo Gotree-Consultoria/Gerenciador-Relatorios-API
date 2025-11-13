@@ -3,7 +3,6 @@ package com.gotree.API.config.security.jwt;
 import com.gotree.API.exceptions.StandardError;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
@@ -22,7 +21,7 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,
-			AccessDeniedException accessDeniedException) throws IOException, ServletException {
+			AccessDeniedException accessDeniedException) throws IOException {
 		StandardError err = new StandardError(Instant.now(), HttpStatus.FORBIDDEN.value(), "Acesso negado",
 				"Você não tem permissão para acessar este recurso", request.getRequestURI());
 

@@ -1,5 +1,6 @@
 package com.gotree.API.entities;
 
+import com.gotree.API.enums.AgendaEventType;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -32,8 +33,7 @@ public class AgendaEvent {
     @Column(name = "original_visit_date")
     private LocalDate originalVisitDate;
 
-    // TODO: trocar o tipo string para Enum (Evento, Treinamento, Visita_Reagendada
-    // Diferencia eventos "normais" (ex.: reunião) de visitas reagendadas
+    @Enumerated(EnumType.STRING)
     @Column(name = "event_type")
-    private String eventType = "EVENTO"; // "EVENTO" ou "VISITA_REAGENDADA"
+    private AgendaEventType eventType;
 }

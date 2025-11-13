@@ -45,7 +45,7 @@ public class AgendaController {
             @RequestBody @Valid CreateEventDTO dto,
             Authentication authentication
     ) {
-        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).user();
         AgendaEvent newEvent = agendaService.createEvent(dto, currentUser);
         return ResponseEntity.status(HttpStatus.CREATED).body(agendaService.mapToDto(newEvent));
     }
@@ -59,7 +59,7 @@ public class AgendaController {
     @GetMapping("/eventos")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<AgendaResponseDTO>> getAllEvents(Authentication authentication) {
-        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).user();
         List<AgendaResponseDTO> allEvents = agendaService.findAllEventsForUser(currentUser);
         return ResponseEntity.ok(allEvents);
     }
@@ -79,7 +79,7 @@ public class AgendaController {
             @RequestBody @Valid CreateEventDTO dto,
             Authentication authentication) {
 
-        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).user();
         AgendaEvent updatedEvent = agendaService.updateEvent(id, dto, currentUser);
         return ResponseEntity.ok(agendaService.mapToDto(updatedEvent));
     }
@@ -99,7 +99,7 @@ public class AgendaController {
             @RequestBody @Valid RescheduleVisitDTO dto,
             Authentication authentication) {
 
-        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).user();
         AgendaEvent rescheduledEvent = agendaService.rescheduleVisit(visitId, dto, currentUser);
         return ResponseEntity.ok(agendaService.mapToDto(rescheduledEvent));
     }
@@ -117,7 +117,7 @@ public class AgendaController {
             @PathVariable Long id, // ID do AgendaEvent
             Authentication authentication) {
 
-        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).getUser();
+        User currentUser = ((CustomUserDetails) authentication.getPrincipal()).user();
         agendaService.deleteEvent(id, currentUser);
         return ResponseEntity.noContent().build();
     }
@@ -126,11 +126,18 @@ public class AgendaController {
      * Retorna todos os eventos da agenda do sistema (acesso administrativo).
      *
      * @return ResponseEntity contendo a lista completa de eventos
+     *
+     * Ver compromissos (Todos ou Filtrado).
      */
     @GetMapping("/eventos/all")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<AgendaResponseDTO>> getAllEventsForAdmin() {
-        List<AgendaResponseDTO> allEvents = agendaService.findAllEventsForAdmin();
+    public ResponseEntity<List<AgendaResponseDTO>> getAllEventsForAdmin(
+            @RequestParam(required = false) Long userId // <-- Parâmetro opcional
+    ) {
+        // Passa o userId (pode ser nulo) para o serviço
+        List<AgendaResponseDTO> allEvents = agendaService.findAllEventsForAdmin(userId);
         return ResponseEntity.ok(allEvents);
     }
+
+
 }

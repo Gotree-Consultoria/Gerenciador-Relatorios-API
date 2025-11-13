@@ -1,6 +1,7 @@
 package com.gotree.API.services;
 
 import com.gotree.API.dto.document.DocumentSummaryDTO;
+import com.gotree.API.entities.AepReport;
 import com.gotree.API.entities.TechnicalVisit;
 import com.gotree.API.entities.User;
 import com.gotree.API.repositories.AepReportRepository;
@@ -55,38 +56,22 @@ public class DocumentAggregationService {
         // Bloco 2: Relatórios de Visita Técnica
         List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAllWithCompanyByTechnician(technician)
                 .stream()
-                .map(visit -> {
-                    DocumentSummaryDTO dto = new DocumentSummaryDTO();
-                    dto.setId(visit.getId());
-                    dto.setDocumentType("Relatório de Visita");
-                    dto.setTitle(visit.getTitle());
-                    dto.setClientName(visit.getClientCompany() != null ? visit.getClientCompany().getName() : "N/A");
-                    dto.setCreationDate(visit.getVisitDate());
-                    return dto; // CORREÇÃO: Adicionado o 'return'
-                })
+                .map(this::mapVisitToSummaryDto) // Refatorado para helper
                 .toList();
 
         // Bloco 3: Relatório AEP
-        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAllByEvaluator(technician) // (Você precisará criar este método no AepReportRepository)
+        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAllByEvaluator(technician)
                 .stream()
-                .map(aep -> {
-                    DocumentSummaryDTO dto = new DocumentSummaryDTO();
-                    dto.setId(aep.getId());
-                    dto.setDocumentType("Avaliação Ergonômica Preliminar");
-                    dto.setTitle(aep.getEvaluatedFunction()); // Usa a "Função Avaliada" como título
-                    dto.setClientName(aep.getCompany() != null ? aep.getCompany().getName() : "N/A");
-                    dto.setCreationDate(aep.getEvaluationDate());
-                    return dto;
-                })
+                .map(this::mapAepToSummaryDto) // Refatorado para helper
                 .toList();
 
-        // 3. Junta todas as listas numa só
+        // 3. Junta as listas
         List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports)
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
 
-        // 4. Ordena a lista final pela data de criação, dos mais recentes para os mais antigos
-        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate).reversed());
+        // 4. Ordena
+        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
 
         return allDocuments;
     }
@@ -102,6 +87,29 @@ public class DocumentAggregationService {
         List<DocumentSummaryDTO> allDocuments = findAllDocumentsForUser(technician);
 
         // Retorna apenas os 5 primeiros da lista já ordenada
+        return allDocuments.stream().limit(5).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryDTO> findAllLatestDocumentsForAdmin() {
+        // 1. Busca TODOS os relatórios (sem filtro de usuário)
+        List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAll()
+                .stream()
+                .map(this::mapVisitToSummaryDto)
+                .toList();
+
+        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAll()
+                .stream()
+                .map(this::mapAepToSummaryDto)
+                .toList();
+
+        // 2. Junta as listas
+        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+
+        // 3. Ordena e pega os 5 mais recentes
+        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
         return allDocuments.stream().limit(5).collect(Collectors.toList());
     }
 
@@ -183,5 +191,32 @@ public class DocumentAggregationService {
             // Se o tipo for desconhecido, lançamos um erro
             throw new IllegalArgumentException("Tipo de documento inválido para deleção: " + type);
         }
+    }
+
+    // --- HELPERS DE MAPEAMENTO ---
+    /**
+     * Converte um TechnicalVisit em DTO de resumo.
+     */
+    public DocumentSummaryDTO mapVisitToSummaryDto(TechnicalVisit visit) {
+        DocumentSummaryDTO dto = new DocumentSummaryDTO();
+        dto.setId(visit.getId());
+        dto.setDocumentType("Relatório de Visita");
+        dto.setTitle(visit.getTitle());
+        dto.setClientName(visit.getClientCompany() != null ? visit.getClientCompany().getName() : "N/A");
+        dto.setCreationDate(visit.getVisitDate());
+        return dto;
+    }
+
+    /**
+     * Converte um AepReport em DTO de resumo.
+     */
+    public DocumentSummaryDTO mapAepToSummaryDto(AepReport aep) {
+        DocumentSummaryDTO dto = new DocumentSummaryDTO();
+        dto.setId(aep.getId());
+        dto.setDocumentType("Avaliação Ergonômica Preliminar");
+        dto.setTitle(aep.getEvaluatedFunction());
+        dto.setClientName(aep.getCompany() != null ? aep.getCompany().getName() : "N/A");
+        dto.setCreationDate(aep.getEvaluationDate());
+        return dto;
     }
 }

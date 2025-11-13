@@ -16,7 +16,7 @@ public class JwtSecurityExceptionHandler {
 
 	// Credenciais errada (ex: senha errada)
 	@ExceptionHandler(BadCredentialsException.class)
-	public ResponseEntity<StandardError> badCredentials(BadCredentialsException ex, HttpServletRequest request) {
+	public ResponseEntity<StandardError> badCredentials(HttpServletRequest request) {
 
 		StandardError err = new StandardError(Instant.now(), HttpStatus.UNAUTHORIZED.value(), "Não autorizado",
 				"Credenciais inválidas", request.getRequestURI());
@@ -25,7 +25,7 @@ public class JwtSecurityExceptionHandler {
 	}
 	
 	@ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<StandardError> accessDenied(AccessDeniedException ex, HttpServletRequest request) {
+    public ResponseEntity<StandardError> accessDenied(HttpServletRequest request) {
         StandardError err = new StandardError(
                 Instant.now(),
                 HttpStatus.FORBIDDEN.value(),

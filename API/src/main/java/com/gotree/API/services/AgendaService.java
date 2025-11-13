@@ -6,8 +6,10 @@ import com.gotree.API.dto.agenda.RescheduleVisitDTO;
 import com.gotree.API.entities.AgendaEvent;
 import com.gotree.API.entities.TechnicalVisit;
 import com.gotree.API.entities.User;
+import com.gotree.API.enums.AgendaEventType;
 import com.gotree.API.repositories.AgendaEventRepository;
 import com.gotree.API.repositories.TechnicalVisitRepository;
+import com.gotree.API.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +31,14 @@ public class AgendaService {
 
     private final AgendaEventRepository agendaEventRepository;
     private final TechnicalVisitRepository technicalVisitRepository;
+    private final UserRepository userRepository;
 
     public AgendaService(AgendaEventRepository agendaEventRepository,
-                         TechnicalVisitRepository technicalVisitRepository) {
+                         TechnicalVisitRepository technicalVisitRepository,
+                         UserRepository userRepository) {
         this.agendaEventRepository = agendaEventRepository;
         this.technicalVisitRepository = technicalVisitRepository;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -46,7 +51,19 @@ public class AgendaService {
         event.setDescription(dto.getDescription());
         event.setEventDate(dto.getEventDate());
         event.setUser(user);
-        event.setEventType("EVENTO"); // Garante que é um evento genérico
+
+        // Converte a String do DTO para Enum
+        try {
+            // Garante que o tipo seja válido (EVENTO ou TREINAMENTO)
+            AgendaEventType type = AgendaEventType.valueOf(dto.getEventType().toUpperCase());
+            if (type == AgendaEventType.VISITA_REAGENDADA) {
+                throw new IllegalArgumentException("Não é possível criar uma 'VISITA_REAGENDADA' diretamente.");
+            }
+            event.setEventType(type);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Tipo de evento inválido: " + dto.getEventType());
+        }
+
         return agendaEventRepository.save(event);
     }
 
@@ -70,8 +87,8 @@ public class AgendaService {
             throw new SecurityException("Usuário não autorizado a modificar este evento.");
         }
 
-        // Só permite alterar eventos genéricos por este método
-        if (!"EVENTO".equals(event.getEventType())) {
+        // Compara usando o Enum
+        if (event.getEventType() == AgendaEventType.VISITA_REAGENDADA) {
             throw new IllegalArgumentException("Visitas reagendadas devem ser alteradas pela sua própria rota.");
         }
 
@@ -82,7 +99,6 @@ public class AgendaService {
         return agendaEventRepository.save(event);
     }
 
-    // --- LÓGICA DE REAGENDAMENTO DE VISITA (NOVO) ---
 
     /**
      * Reagenda uma visita técnica existente.
@@ -112,14 +128,15 @@ public class AgendaService {
 
         // 4. Preenche os dados conforme sua regra de negócio
         event.setUser(currentUser);
-        event.setEventType("VISITA_REAGENDADA");
-        event.setTitle("Reagendamento: " + visit.getTitle());
 
-        // O log que você pediu
+        // 5. Usa o Enum
+        event.setEventType(AgendaEventType.VISITA_REAGENDADA);
+
+        event.setTitle("Reagendamento: " + visit.getTitle());
         event.setDescription("Visita reagendada. Motivo: " + (dto.getReason() != null ? dto.getReason() : "Não especificado."));
-        event.setOriginalVisitDate(visit.getNextVisitDate()); // "Data original"
-        event.setEventDate(dto.getNewDate()); // "Novo agendamento"
-        event.setSourceVisitId(visit.getId()); // Link para o relatório
+        event.setOriginalVisitDate(visit.getNextVisitDate());
+        event.setEventDate(dto.getNewDate());
+        event.setSourceVisitId(visit.getId());
 
         return agendaEventRepository.save(event);
     }
@@ -134,7 +151,7 @@ public class AgendaService {
      */
     @Transactional
     public void deleteEvent(Long eventId, User currentUser) {
-        // Agora este método pode deletar *qualquer* tipo de evento (genérico ou reagendado)
+        // Agora este metodo pode deletar *qualquer* tipo de evento (genérico ou reagendado)
         AgendaEvent event = agendaEventRepository.findById(eventId)
                 .orElseThrow(() -> new RuntimeException("Evento com ID " + eventId + " não encontrado."));
 
@@ -153,7 +170,7 @@ public class AgendaService {
     @Transactional(readOnly = true)
     public List<AgendaResponseDTO> findAllEventsForUser(User user) {
         // 1. Busca os eventos reais do usuário
-        List<AgendaEvent> persistentEvents = agendaEventRepository.findByUserOrderByEventDateAsc(user);
+        List<AgendaEvent> persistentEvents = agendaEventRepository.findAllWithUserByOrderByEventDateAsc();
         // 2. Busca as visitas virtuais do usuário
         List<TechnicalVisit> scheduledVisits = technicalVisitRepository.findAllScheduledWithCompanyByTechnician(user);
         // 3. Delega ao helper para processar e ordenar
@@ -161,20 +178,36 @@ public class AgendaService {
     }
 
     /**
-     * Busca TODOS os compromissos de TODOS os usuários (para Admin).
-     */
-    /**
      * Busca todos os eventos de todos os usuários do sistema.
      * Este metodo é destinado apenas para usuários com perfil administrativo.
      *
      * @return Lista de eventos ordenada por data
      */
     @Transactional(readOnly = true)
-    public List<AgendaResponseDTO> findAllEventsForAdmin() {
-        // 1. Busca TODOS os eventos reais
-        List<AgendaEvent> persistentEvents = agendaEventRepository.findAllByOrderByEventDateAsc();
+    public List<AgendaResponseDTO> findAllEventsForAdmin(Long userId) {
+        // Usa o método otimizado que traz o usuário junto
+        List<AgendaEvent> persistentEvents = agendaEventRepository.findAllWithUserByOrderByEventDateAsc();
         // 2. Busca TODAS as visitas virtuais
         List<TechnicalVisit> scheduledVisits = technicalVisitRepository.findAllScheduledWithCompany();
+
+        if (userId != null) {
+            // --- LÓGICA COM FILTRO ---
+            // 1. Busca o usuário (necessário para o repositório de visitas)
+            User filterUser = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Usuário com ID " + userId + " não encontrado."));
+
+            // 2. Busca Eventos do Usuário (usando o novo método otimizado)
+            persistentEvents = agendaEventRepository.findByUserIdWithUserOrderByEventDateAsc(userId);
+
+            // 3. Busca Visitas do Usuário (reutiliza o método existente)
+            scheduledVisits = technicalVisitRepository.findAllScheduledWithCompanyByTechnician(filterUser);
+
+        } else {
+            // --- LÓGICA SEM FILTRO (TODOS) ---
+            persistentEvents = agendaEventRepository.findAllWithUserByOrderByEventDateAsc();
+            scheduledVisits = technicalVisitRepository.findAllScheduledWithCompany();
+        }
+
         // 3. Delega ao helper para processar e ordenar
         return aggregateAndSortEvents(persistentEvents, scheduledVisits);
     }
@@ -191,7 +224,8 @@ public class AgendaService {
 
         // 1. Extrai os IDs das visitas que JÁ FORAM REAGENDADAS
         Set<Long> rescheduledVisitIds = persistentEvents.stream()
-                .filter(e -> "VISITA_REAGENDADA".equals(e.getEventType()) && e.getSourceVisitId() != null)
+                // 6. Compara usando o Enum
+                .filter(e -> e.getEventType() == AgendaEventType.VISITA_REAGENDADA && e.getSourceVisitId() != null)
                 .map(AgendaEvent::getSourceVisitId)
                 .collect(Collectors.toSet());
 
@@ -203,7 +237,7 @@ public class AgendaService {
         // 3. Mapeia as visitas "virtuais", IGNORANDO as que já foram reagendadas
         for (TechnicalVisit visit : scheduledVisits) {
             if (!rescheduledVisitIds.contains(visit.getId())) {
-                allEvents.add(mapVisitToDto(visit)); // Só adiciona se NÃO foi reagendada
+                allEvents.add(mapVisitToDto(visit));
             }
         }
 
@@ -220,16 +254,18 @@ public class AgendaService {
         dto.setTitle(event.getTitle());
         dto.setDate(event.getEventDate());
         dto.setDescription(event.getDescription());
-        dto.setType(event.getEventType());
+        dto.setType(event.getEventType().name());
         dto.setReferenceId(event.getId());
         dto.setOriginalVisitDate(event.getOriginalVisitDate());
         dto.setSourceVisitId(event.getSourceVisitId());
+
+        if (event.getUser() != null) {
+            dto.setResponsibleName(event.getUser().getName());
+        }
+
         return dto;
     }
 
-    /**
-     * Converte uma TechnicalVisit (virtual) em um DTO de resposta.
-     */
     /**
      * Converte uma entidade TechnicalVisit em um DTO de resposta.
      * O metodo constrói um título descritivo incluindo informações da empresa,
@@ -261,6 +297,11 @@ public class AgendaService {
         dto.setSectorName(sectorName);
         dto.setOriginalVisitDate(null);
         dto.setSourceVisitId(null);
+
+        if (visit.getTechnician() != null) {
+            dto.setResponsibleName(visit.getTechnician().getName());
+        }
+
         return dto;
     }
 }

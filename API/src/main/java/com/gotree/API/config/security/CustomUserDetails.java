@@ -1,24 +1,16 @@
 package com.gotree.API.config.security;
 
 import com.gotree.API.entities.User;
-import lombok.Getter; // Importa a anotação @Getter
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.io.Serial; // Importa a anotação @Serial
+import java.io.Serial;
 import java.util.Collection;
 
-@Getter
-public class CustomUserDetails implements UserDetails {
+public record CustomUserDetails(User user) implements UserDetails {
 
 	@Serial
 	private static final long serialVersionUID = 1L;
-
-	private final User user;
-
-	public CustomUserDetails(User user) {
-		this.user = user;
-	}
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

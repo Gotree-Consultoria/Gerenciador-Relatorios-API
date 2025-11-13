@@ -34,4 +34,6 @@ public class Company {
 
     @OneToMany(mappedBy = "company", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<Sector> sectors = new HashSet<>();
+
+    // TODO: Incluir coluna function (necessário para funções dentro de cada empresa na emissão do Checklist - Riscos Ocupacionais)
 }
