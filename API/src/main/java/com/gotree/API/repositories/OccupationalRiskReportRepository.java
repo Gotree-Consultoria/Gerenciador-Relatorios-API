@@ -9,8 +9,13 @@ import java.util.List;
 
 @Repository
 public interface OccupationalRiskReportRepository extends JpaRepository<OccupationalRiskReport, Long> {
+
     // Busca relatórios pelo técnico (para listar no dashboard)
     List<OccupationalRiskReport> findByTechnicianOrderByInspectionDateDesc(User technician);
 
+    // (NOVO) Para KPIs do Usuário (Total de relatórios feitos pelo técnico)
     long countByTechnician(User technician);
+
+    // (NOVO) Para KPIs do Admin (Contagem filtrada por técnico e empresa)
+    long countByTechnicianAndCompanyId(User technician, Long companyId);
 }

@@ -6,6 +6,8 @@ import java.util.List;
 
 @Data
 public class SaveRiskReportRequestDTO {
+
+    private String title;
     private Long companyId;
     private Long unitId;
     private Long sectorId;

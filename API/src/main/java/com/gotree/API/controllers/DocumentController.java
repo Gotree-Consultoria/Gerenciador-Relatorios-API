@@ -6,6 +6,9 @@ import com.gotree.API.entities.User;
 import com.gotree.API.services.DocumentAggregationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,9 +19,11 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -40,22 +45,35 @@ public class DocumentController {
     }
 
     /**
-     * Retorna todos os documentos associados ao usuário autenticado.
-     * Este endpoint é utilizado na página "Gerenciar Documentos" para listar
-     * documentos de todos os tipos de visitas.
+     * Retorna todos os documentos associados ao usuário autenticado, com filtros e paginação.
      *
-     * @param authentication Objeto de autenticação do Spring Security contendo os detalhes do usuário
-     * @return ResponseEntity com uma lista de DocumentSummaryDTO contendo os resumos dos documentos
+     * @param authentication Objeto de autenticação
+     * @param type Filtro por Tipo (visit, aep, risk)
+     * @param clientName Filtro por nome do Cliente
+     * @param startDate Filtro de data inicial (formato AAAA-MM-DD)
+     * @param endDate Filtro de data final (formato AAAA-MM-DD)
+     * @param pageable Objeto do Spring que contém a página (page=) e o tamanho (size=)
+     * @return ResponseEntity com uma Página (Page) de DocumentSummaryDTO
      */
     @GetMapping
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<DocumentSummaryDTO>> getAllMyDocuments(Authentication authentication) {
+    public ResponseEntity<Page<DocumentSummaryDTO>> getAllMyDocuments(
+            Authentication authentication,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String clientName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            Pageable pageable // O Spring monta isso automaticamente
+    ) {
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         User technician = userDetails.user();
 
-        List<DocumentSummaryDTO> allDocuments = documentAggregationService.findAllDocumentsForUser(technician);
+        // Passa os novos filtros e a paginação para o serviço
+        Page<DocumentSummaryDTO> documentsPage = documentAggregationService.findAllDocumentsForUser(
+                technician, type, clientName, startDate, endDate, pageable
+        );
 
-        return ResponseEntity.ok(allDocuments);
+        return ResponseEntity.ok(documentsPage);
     }
 
     /**

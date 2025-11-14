@@ -1,15 +1,26 @@
 <!DOCTYPE html>
 <html lang="pt-BR" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
     <title>Checklist de Riscos Ocupacionais</title>
+
     <style>
+        :root {
+            --text-color: #111;
+            --muted: #666;
+            --accent: #222;
+            --title-bg: #f2f2f2;
+            --section-bg: #e0e0e0;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Montserrat', Arial, sans-serif;
             font-size: 10pt;
             margin: 0;
             padding: 0;
+            color: var(--text-color);
         }
+
         .header {
             width: 100%;
             border-collapse: collapse;
@@ -19,7 +30,7 @@
             border: 1px solid #ccc;
             padding: 8px;
             vertical-align: middle;
-            text-align: center; /* Tudo centralizado */
+            text-align: center;
         }
 
         .header .logo {
@@ -34,8 +45,8 @@
         .header .title {
             width: 70%;
             font-size: 14pt;
-            font-weight: bold;
-            background-color: #f2f2f2;
+            font-weight: 700;
+            background-color: var(--title-bg);
             text-transform: uppercase;
         }
         .header .info {
@@ -43,14 +54,17 @@
             text-align: right;
             font-size: 8pt;
         }
+
         .section-title {
-            background-color: #e0e0e0;
-            padding: 5px;
+            background-color: var(--section-bg);
+            padding: 6px 10px;
             margin-top: 15px;
             margin-bottom: 10px;
-            font-weight: bold;
+            font-weight: 600;
             border: 1px solid #ccc;
+            font-family: 'Montserrat', Arial, sans-serif;
         }
+
         .data-grid {
             width: 100%;
             border-collapse: collapse;
@@ -62,10 +76,11 @@
             vertical-align: top;
         }
         .data-grid .label {
-            width: 25%; /* Ajuste a largura das labels */
-            font-weight: bold;
+            width: 25%;
+            font-weight: 700;
             background-color: #f9f9f9;
         }
+
         .risk-table {
             width: 100%;
             border-collapse: collapse;
@@ -75,39 +90,116 @@
             border: 1px solid #000;
             padding: 6px;
             text-align: left;
+            font-family: 'Montserrat', Arial, sans-serif;
         }
         .risk-table thead th {
             background-color: #d0d0d0;
-            font-weight: bold;
+            font-weight: 700;
             text-transform: uppercase;
         }
         .risk-table tbody tr:nth-child(even) {
             background-color: #f5f5f5;
         }
+
+        /*
+         * Signature area
+         * - centralizado
+         * - imagem maior com proporção controlada
+         * - linha horizontal abaixo da imagem
+         * - nome em Montserrat bold, tamanho maior
+         * - registro em font-size menor
+         */
         .signature-block {
             width: 100%;
             margin-top: 40px;
-            page-break-inside: avoid; /* Evita que a assinatura seja quebrada entre páginas */
-        }
-        .signature-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .signature-table td {
-            width: 50%;
+            page-break-inside: avoid;
             text-align: center;
-            padding: 20px 10px;
-            border-top: 1px solid #000;
+            font-family: 'Montserrat', Arial, sans-serif;
         }
-        .signature-table .label {
-            font-weight: bold;
-            margin-top: 5px;
+
+        .signature-block .section-title {
+            text-align: left; /* mantém o título da seção alinhado à esquerda como antes */
         }
-        .signature-table img {
-            max-width: 150px;
-            max-height: 70px;
-            display: block;
-            margin: 0 auto 5px auto;
+
+        .signature-inner {
+            margin-top: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .signature-img-wrap {
+            width: 100%;
+            text-align: center;
+        }
+
+        /* Ajuste de tamanho da assinatura para ficar parecido com a referência */
+        .signature-img {
+            max-width: 380px; /* largura alvo */
+            max-height: 120px;
+            width: auto;
+            height: auto;
+            display: inline-block;
+            object-fit: contain;
+        }
+
+        /* Espaço reservado caso não exista imagem (mantém layout) */
+        .signature-placeholder {
+            width: 380px;
+            height: 120px;
+            display: inline-block;
+        }
+
+        /* Linha abaixo da assinatura, centralizada e com espessura parecida com a imagem exemplo */
+        .signature-line {
+            width: 60%;
+            max-width: 420px;
+            margin: 12px auto 6px auto;
+            border-top: 2px solid var(--accent);
+        }
+
+        .sig-name {
+            font-weight: 700;
+            font-size: 12pt;
+            margin-top: 6px;
+            margin-bottom: 2px;
+            color: var(--text-color);
+            text-align: center;
+        }
+
+        .sig-reg {
+            font-weight: 600;
+            font-size: 10pt;
+            color: #333;
+            margin-bottom: 2px;
+            text-align: center;
+        }
+
+        .sig-role {
+            font-weight: 500;
+            font-size: 10pt;
+            color: #222;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        .sig-timestamp {
+            font-weight: 400;
+            font-size: 10pt;
+            color: var(--muted);
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        /* pequenas responsividades para evitar overflow */
+        @media (max-width: 480px) {
+            .signature-img, .signature-placeholder {
+                max-width: 260px;
+                max-height: 90px;
+            }
+            .signature-line { width: 80%; }
+            .sig-name { font-size: 12pt; }
         }
     </style>
 </head>
@@ -133,6 +225,16 @@
     </tr>
 </table>
 
+<div class="section-title">DADOS DO EMISSOR</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Empresa</td>
+        <td th:text="${generatingCompanyName}"></td>
+        <td class="label">CNPJ</td>
+        <td th:text="${generatingCompanyCnpj}"></td>
+    </tr>
+</table>
+
 <div class="section-title">DADOS DO CLIENTE</div>
 <table class="data-grid">
     <tr>
@@ -155,7 +257,7 @@
         <td class="label">Responsável</td>
         <td th:text="${report.technician?.name}"></td>
         <td class="label">Registro no Conselho</td>
-        <td th:text="${report.technician?.conselhoClasse} + ' | ' + ${report.technician?.siglaConselho}"></td>
+        <td th:text="${report.technician?.conselhoClasse} + ' | ' + ${report.technician?.siglaConselhoClasse}"></td>
     </tr>
     <tr>
         <td class="label">Data da Inspeção</td>
@@ -191,28 +293,33 @@
     </table>
 </div>
 
+<!-- BLOC0 DE ASSINATURA - substitua no template original -->
 <div class="signature-block">
-    <div class="section-title">Assinatura</div>
-    <table class="signature-table">
-        <tr>
-            <td>
-                <img th:if="${report.technicianSignatureImageBase64 != null}"
-                     th:src="'data:image/png;base64,' + ${report.technicianSignatureImageBase64}"
-                     alt="Assinatura do Técnico" />
 
-                <div th:if="${report.technicianSignatureImageBase64 == null}" style="height: 50px;"></div>
+    <div class="signature-inner">
+        <div class="signature-img-wrap">
+            <img th:if="${report.technicianSignatureImageBase64 != null}"
+                 th:src="'data:image/png;base64,' + ${report.technicianSignatureImageBase64}"
+                 alt="Assinatura do Técnico"
+                 class="signature-img" />
 
-                <br/>
-                <span class="label" th:text="${report.technician?.name}"></span><br/>
-                <span>Técnico Responsável</span>
+            <div th:if="${report.technicianSignatureImageBase64 == null}"
+                 class="signature-placeholder"></div>
+        </div>
 
-                <span th:if="${report.technicianSignedAt != null}">
-                    <br/>Data: <span th:text="${#temporals.format(report.technicianSignedAt, 'dd/MM/yyyy HH:mm')}"></span>
-                </span>
-            </td>
-        </tr>
-    </table>
+        <div class="signature-line" aria-hidden="true"></div>
+
+        <div>
+            <div class="sig-name" th:text="${report.technician?.name ?: ''}">Nome do Técnico</div>
+            <div class="sig-reg" th:text="${report.technician?.conselhoClasse} + ' | ' + ${report.technician?.siglaConselhoClasse}">12345/XX | MTE</div>
+            <div class="sig-role" th:text="${report.technician?.especialidade ?: 'Responsável Técnico'}">Responsável Técnico</div>
+            <div class="sig-timestamp" th:if="${report.technicianSignedAt != null}">
+                Assinado em: <span th:text="${#temporals.format(report.technicianSignedAt, 'dd/MM/yyyy HH:mm')}"></span>
+            </div>
+        </div>
+    </div>
 </div>
+<!-- FIM BLOCO DE ASSINATURA -->
 
 </body>
 </html>

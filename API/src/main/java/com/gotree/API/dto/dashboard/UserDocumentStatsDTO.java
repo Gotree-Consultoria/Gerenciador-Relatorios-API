@@ -8,6 +8,7 @@ public class UserDocumentStatsDTO {
     private String userName;
     private long totalVisits;
     private long totalAeps;
+    private long totalRisks;
     private long totalDocuments;
 
     public UserDocumentStatsDTO(Long userId, String userName) {
@@ -15,6 +16,7 @@ public class UserDocumentStatsDTO {
         this.userName = userName;
         this.totalVisits = 0;
         this.totalAeps = 0;
+        this.totalRisks = 0;
         this.totalDocuments = 0;
     }
 }

@@ -9,6 +9,10 @@ import com.gotree.API.repositories.AepReportRepository;
 import com.gotree.API.repositories.OccupationalRiskReportRepository;
 import com.gotree.API.repositories.TechnicalVisitRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,19 +20,20 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 /**
  * Serviço responsável por agregar e gerenciar diferentes tipos de documentos no sistema,
- * incluindo Relatórios de Visita Técnica e Avaliações Ergonômicas Preliminares (AEP).
- * Fornece funcionalidades para buscar, carregar e deletar documentos.
+ * incluindo Relatórios de Visita Técnica, Avaliações Ergonômicas Preliminares (AEP)
+ * e Relatórios de Riscos Ocupacionais (Checklists).
+ * Fornece funcionalidades para buscar, carregar, filtrar e deletar documentos.
  */
 @Service
 public class DocumentAggregationService {
-    
-    
 
     private final TechnicalVisitRepository technicalVisitRepository;
     private final TechnicalVisitService technicalVisitService;
@@ -63,82 +68,142 @@ public class DocumentAggregationService {
     }
 
     /**
-     * Recupera todos os documentos associados a um técnico específico.
-     * Inclui tanto Relatórios de Visita Técnica quanto Avaliações Ergonômicas Preliminares.
-     *
-     * @param technician O usuário técnico para o qual os documentos serão buscados
-     * @return Lista de DocumentSummaryDTO contendo todos os documentos ordenados por data de criação
+     * Recupera todos os documentos associados a um técnico, com filtros e paginação.
+     * ATENÇÃO: Esta implementação faz paginação EM MEMÓRIA.
      */
     @Transactional(readOnly = true)
-    public List<DocumentSummaryDTO> findAllDocumentsForUser(User technician) {
-
-        // Bloco 2: Relatórios de Visita Técnica
+    public Page<DocumentSummaryDTO> findAllDocumentsForUser(
+            User technician,
+            String typeFilter, String clientFilter,
+            LocalDate startDate, LocalDate endDate,
+            Pageable pageable
+    ) {
+        // 1. Relatórios de Visita Técnica (igual)
         List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAllWithCompanyByTechnician(technician)
                 .stream()
-                .map(this::mapVisitToSummaryDto) // Refatorado para helper
+                .map(this::mapVisitToSummaryDto)
                 .toList();
 
-        // Bloco 3: Relatório AEP
+        // 2. Relatórios AEP (igual)
         List<DocumentSummaryDTO> aepReports = aepReportRepository.findAllByEvaluator(technician)
                 .stream()
-                .map(this::mapAepToSummaryDto) // Refatorado para helper
+                .map(this::mapAepToSummaryDto)
                 .toList();
 
-        // Bloco 4: CHECKLIST DE RISCOS
+        // 3. Checklist de Riscos (igual)
         List<DocumentSummaryDTO> riskReports = riskReportRepository.findByTechnicianOrderByInspectionDateDesc(technician)
                 .stream()
-                .map(report -> {
-                    DocumentSummaryDTO dto = new DocumentSummaryDTO();
-                    dto.setId(report.getId());
-                    dto.setDocumentType("Checklist de Riscos"); // Identificador visual
-                    dto.setTitle(report.getTitle());
-                    dto.setClientName(report.getCompany() != null ? report.getCompany().getName() : "N/A");
-                    dto.setCreationDate(report.getInspectionDate());
-                    return dto;
-                })
+                .map(this::mapRiskToSummaryDto)
                 .toList();
 
-        // Junta as listas
-        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
+        Stream<DocumentSummaryDTO> stream = Stream.of(technicalVisits, aepReports, riskReports)
+                .flatMap(List::stream);
 
-        // 4. Ordena
-        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+        // 4. --- APLICA OS FILTROS ---
 
-        return allDocuments;
+        // Filtro por TIPO (igual)
+        if (typeFilter != null && !typeFilter.isBlank()) {
+            final String typeInput = typeFilter.trim();
+            stream = stream.filter(doc -> {
+                if ("visit".equalsIgnoreCase(typeInput)) return "Relatório de Visita".equals(doc.getDocumentType());
+                if ("aep".equalsIgnoreCase(typeInput)) return "Avaliação Ergonômica Preliminar".equals(doc.getDocumentType());
+                if ("risk".equalsIgnoreCase(typeInput)) return "Checklist de Riscos".equals(doc.getDocumentType());
+                return false; // Correção da lógica anterior
+            });
+        }
+
+        // Filtro por NOME DO CLIENTE (igual)
+        if (clientFilter != null && !clientFilter.isBlank()) {
+            String filter = clientFilter.toLowerCase().trim();
+            stream = stream.filter(doc ->
+                    doc.getClientName() != null &&
+                            doc.getClientName().toLowerCase().contains(filter)
+            );
+        }
+
+        // --- NOVO: FILTRO POR DATA ---
+        if (startDate != null) {
+            stream = stream.filter(doc -> doc.getCreationDate() != null &&
+                    !doc.getCreationDate().isBefore(startDate));
+        }
+        if (endDate != null) {
+            stream = stream.filter(doc -> doc.getCreationDate() != null &&
+                    !doc.getCreationDate().isAfter(endDate));
+        }
+
+        // 5. Coleta e Ordena
+        List<DocumentSummaryDTO> filteredList = stream.collect(Collectors.toList());
+        // A ordenação do Pageable é complexa de aplicar aqui,
+        // então mantemos a ordenação padrão por data de criação.
+        filteredList.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+
+        // 6. --- NOVO: PAGINAÇÃO MANUAL (EM MEMÓRIA) ---
+
+        // Calcula o total de elementos (antes de fatiar)
+        long totalElements = filteredList.size();
+
+        // Pega os dados da paginação (Ex: page=1, size=20)
+        int pageSize = pageable.getPageSize();
+        int currentPage = pageable.getPageNumber(); // O Spring Pageable começa em 0
+
+        // Calcula o índice inicial
+        int startItem = currentPage * pageSize;
+
+        List<DocumentSummaryDTO> paginatedList;
+
+        if (startItem >= totalElements) {
+            // Se o índice inicial for maior que a lista, retorna vazio
+            paginatedList = Collections.emptyList();
+        } else {
+            // Calcula o índice final
+            int toIndex = Math.min(startItem + pageSize, (int) totalElements);
+            // "Fatia" a lista
+            paginatedList = filteredList.subList(startItem, toIndex);
+        }
+
+        // 7. Retorna o objeto Page
+        // O PageImpl é a implementação concreta de Page
+        return new PageImpl<>(paginatedList, pageable, totalElements);
     }
 
     /**
      * Recupera os 5 documentos mais recentes associados a um técnico específico.
+     * (CORRIGIDO PARA USAR PAGINAÇÃO)
      *
      * @param technician O usuário técnico para o qual os documentos serão buscados
      * @return Lista limitada a 5 DocumentSummaryDTO ordenados por data de criação
      */
     @Transactional(readOnly = true)
-    /**
-     * Recupera os 5 documentos mais recentes associados a um técnico específico.
-     * Inclui relatórios de visita técnica, avaliações ergonômicas preliminares e checklists de risco.
-     *
-     * @param technician O usuário técnico para o qual os documentos serão buscados
-     * @return Lista limitada a 5 DocumentSummaryDTO ordenados por data de criação decrescente
-     */
     public List<DocumentSummaryDTO> findLatestDocumentsForUser(User technician) {
-        List<DocumentSummaryDTO> allDocuments = findAllDocumentsForUser(technician);
 
-        // Retorna apenas os 5 primeiros da lista já ordenada
-        return allDocuments.stream().limit(5).collect(Collectors.toList());
+        // 1. Criamos um "pedido" para a Página 0, com 5 itens de tamanho.
+        Pageable pageRequest = PageRequest.of(0, 5);
+
+        // 2. Chamamos o metodo paginado, passando null para os filtros
+        // e o nosso "pedido" de página.
+        Page<DocumentSummaryDTO> documentsPage = findAllDocumentsForUser(
+                technician,
+                null, // typeFilter
+                null, // clientFilter
+                null, // startDate
+                null, // endDate
+                pageRequest // pageable
+        );
+
+        // 3. O 'Page' já contém a lista dos 5 itens.
+        // Usamos .getContent() para retornar apenas a lista.
+        return documentsPage.getContent();
     }
 
-    @Transactional(readOnly = true)
     /**
      * Recupera os 5 documentos mais recentes do sistema para visualização administrativa.
      * Inclui todos os tipos de documentos sem restrição por usuário.
      *
      * @return Lista limitada a 5 DocumentSummaryDTO ordenados por data de criação decrescente
      */
+    @Transactional(readOnly = true)
     public List<DocumentSummaryDTO> findAllLatestDocumentsForAdmin() {
-        // 1. Busca TODOS os relatórios (sem filtro de usuário)
+        // 1. Busca TODOS os relatórios
         List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAll()
                 .stream()
                 .map(this::mapVisitToSummaryDto)
@@ -149,14 +214,54 @@ public class DocumentAggregationService {
                 .map(this::mapAepToSummaryDto)
                 .toList();
 
+        List<DocumentSummaryDTO> riskReports = riskReportRepository.findAll()
+                .stream()
+                .map(this::mapRiskToSummaryDto)
+                .toList();
+
         // 2. Junta as listas
-        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports)
+        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports, riskReports)
                 .flatMap(List::stream)
                 .collect(Collectors.toList());
 
         // 3. Ordena e pega os 5 mais recentes
         allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
         return allDocuments.stream().limit(5).collect(Collectors.toList());
+    }
+
+    /**
+     * Retorna a LISTA COMPLETA de documentos para um usuário (sem paginação).
+     * Usado por serviços internos como o Dashboard para calcular estatísticas.
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryDTO> findAllDocumentsListForUser(User technician) {
+        // 1. Busca todos os tipos
+        List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAllWithCompanyByTechnician(technician)
+                .stream()
+                .map(this::mapVisitToSummaryDto)
+                .toList();
+
+        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAllByEvaluator(technician)
+                .stream()
+                .map(this::mapAepToSummaryDto)
+                .toList();
+
+        List<DocumentSummaryDTO> riskReports = riskReportRepository.findByTechnicianOrderByInspectionDateDesc(technician)
+                .stream()
+                .map(this::mapRiskToSummaryDto)
+                .toList();
+
+        // 2. Junta as listas
+        Stream<DocumentSummaryDTO> stream = Stream.of(technicalVisits, aepReports, riskReports)
+                .flatMap(List::stream);
+
+        // 3. Coleta e Retorna a lista completa
+        List<DocumentSummaryDTO> allDocuments = stream.collect(Collectors.toList());
+
+        // Ordena (o dashboard não precisa, mas é uma boa prática)
+        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+
+        return allDocuments;
     }
 
     /**
@@ -203,11 +308,14 @@ public class DocumentAggregationService {
             throw new RuntimeException("Este documento não possui um PDF associado.");
         }
 
-        // Agora, este código só é executado se tivermos um fileName válido.
+        // Este código só é executado se tivermos um fileName válido.
         Path path;
         if ("visit".equalsIgnoreCase(type)) {
             // O TechnicalVisitService salva SÓ O NOME DO ARQUIVO
             path = Paths.get(fileStoragePath, fileName);
+        } else if ("risk".equalsIgnoreCase(type)) {
+            // O RiskChecklistService salva o CAMINHO COMPLETO
+            path = Paths.get(fileName);
         } else {
             // Segurança: caso um tipo não mapeado chegue aqui
             throw new IOException("Lógica de caminho de PDF não definida para o tipo: " + type);
@@ -249,9 +357,6 @@ public class DocumentAggregationService {
 
     // --- HELPERS DE MAPEAMENTO ---
     /**
-     * Converte um TechnicalVisit em DTO de resumo.
-     */
-    /**
      * Converte um objeto TechnicalVisit em um DocumentSummaryDTO.
      *
      * @param visit A visita técnica a ser convertida
@@ -264,12 +369,11 @@ public class DocumentAggregationService {
         dto.setTitle(visit.getTitle());
         dto.setClientName(visit.getClientCompany() != null ? visit.getClientCompany().getName() : "N/A");
         dto.setCreationDate(visit.getVisitDate());
+        // Define se está assinado (para o cadeado)
+        dto.setSigned(visit.getTechnicianSignatureImageBase64() != null && !visit.getTechnicianSignatureImageBase64().isBlank());
         return dto;
     }
 
-    /**
-     * Converte um AepReport em DTO de resumo.
-     */
     /**
      * Converte um objeto AepReport em um DocumentSummaryDTO.
      *
@@ -283,6 +387,25 @@ public class DocumentAggregationService {
         dto.setTitle(aep.getEvaluatedFunction());
         dto.setClientName(aep.getCompany() != null ? aep.getCompany().getName() : "N/A");
         dto.setCreationDate(aep.getEvaluationDate());
+        dto.setSigned(false); // AEPs geralmente são editáveis (ajuste se tiver assinatura)
+        return dto;
+    }
+
+    /**
+     * Converte um objeto OccupationalRiskReport em um DocumentSummaryDTO.
+     *
+     * @param report O relatório de riscos ocupacionais a ser convertido
+     * @return DocumentSummaryDTO contendo as informações resumidas do checklist de riscos
+     */
+    public DocumentSummaryDTO mapRiskToSummaryDto(OccupationalRiskReport report) {
+        DocumentSummaryDTO dto = new DocumentSummaryDTO();
+        dto.setId(report.getId());
+        dto.setDocumentType("Checklist de Riscos");
+        dto.setTitle(report.getTitle()); // "Checklist - Riscos Ocupacionais"
+        dto.setClientName(report.getCompany() != null ? report.getCompany().getName() : "N/A");
+        dto.setCreationDate(report.getInspectionDate());
+        // Define se está assinado
+        dto.setSigned(report.getTechnicianSignatureImageBase64() != null && !report.getTechnicianSignatureImageBase64().isBlank());
         return dto;
     }
 }

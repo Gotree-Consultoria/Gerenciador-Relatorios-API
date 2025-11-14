@@ -11,4 +11,5 @@ public class DocumentSummaryDTO {
     private String title;
     private String clientName;
     private LocalDate creationDate; // Um campo de data comum para ordenação
+    private boolean signed;
 }

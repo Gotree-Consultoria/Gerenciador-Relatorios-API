@@ -8,10 +8,28 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
+/**
+ * Interface de repositório para gerenciamento de Visitas Técnicas.
+ * Fornece métodos para busca, contagem e cálculo de duração das visitas.
+ */
 public interface TechnicalVisitRepository extends JpaRepository<TechnicalVisit, Long> {
 
+
+    /**
+     * Busca todas as visitas de um técnico, ordenadas por data decrescente.
+     *
+     * @param technician Técnico responsável pelas visitas
+     * @return Lista de visitas técnicas
+     */
     List<TechnicalVisit> findByTechnicianOrderByVisitDateDesc(User technician);
 
+    /**
+     * Busca todas as visitas de um técnico incluindo dados da empresa cliente,
+     * ordenadas por data decrescente.
+     *
+     * @param technician Técnico responsável pelas visitas
+     * @return Lista de visitas técnicas com dados da empresa
+     */
     @Query("SELECT v FROM TechnicalVisit v LEFT JOIN FETCH v.clientCompany WHERE v.technician = :technician ORDER BY v.visitDate DESC")
     List<TechnicalVisit> findAllWithCompanyByTechnician(@Param("technician") User technician);
 
@@ -40,21 +58,44 @@ public interface TechnicalVisitRepository extends JpaRepository<TechnicalVisit, 
             "ORDER BY v.nextVisitDate ASC")
     List<TechnicalVisit> findAllScheduledWithCompany();
 
-    // (NOVO) Para KPIs do Usuário
+    /**
+     * Conta o total de visitas realizadas por um técnico.
+     * Utilizado para KPIs do usuário.
+     *
+     * @param technician Técnico a ser consultado
+     * @return Total de visitas do técnico
+     */
     long countByTechnician(User technician);
 
-    // (NOVO) Para KPIs do Admin
+    /**
+     * Conta o total de visitas realizadas por um técnico em uma empresa específica.
+     * Utilizado para KPIs do administrador.
+     *
+     * @param technician Técnico a ser consultado
+     * @param companyId  ID da empresa
+     * @return Total de visitas do técnico na empresa
+     */
     long countByTechnicianAndClientCompanyId(User technician, Long companyId);
 
-    // (NOVO) Calcula o tempo total em segundos para um usuário
+    /**
+     * Calcula o tempo total em segundos de todas as visitas de um usuário.
+     * Utiliza query nativa para extração do intervalo de tempo em segundos.
+     * @param userId ID do usuário
+     * @return Tempo total em segundos
+     */
     @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (t.end_time - t.start_time))), 0) " +
             "FROM tb_technical_visit t WHERE t.technician_id = :userId AND t.end_time IS NOT NULL",
-            nativeQuery = true) // <-- Adicionado
-    long findTotalVisitDurationInSeconds(@Param("userId") Long userId); // <-- Mudado de User para Long
+            nativeQuery = true)
+    long findTotalVisitDurationInSeconds(@Param("userId") Long userId);
 
-    // (NOVO) Calcula o tempo total em segundos para todos
+    /**
+     * Calcula o tempo total em segundos de todas as visitas no sistema.
+     * Utiliza query nativa para extração do intervalo de tempo em segundos.
+     *
+     * @return Tempo total em segundos de todas as visitas
+     */
     @Query(value = "SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (t.end_time - t.start_time))), 0) " +
             "FROM tb_technical_visit t WHERE t.end_time IS NOT NULL",
-            nativeQuery = true) // <-- Adicionado
+            nativeQuery = true)
     long findTotalVisitDurationInSeconds();
 }
