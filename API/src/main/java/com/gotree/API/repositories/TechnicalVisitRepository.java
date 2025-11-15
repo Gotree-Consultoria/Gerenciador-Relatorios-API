@@ -98,4 +98,8 @@ public interface TechnicalVisitRepository extends JpaRepository<TechnicalVisit, 
             "FROM tb_technical_visit t WHERE t.end_time IS NOT NULL",
             nativeQuery = true)
     long findTotalVisitDurationInSeconds();
+
+    boolean existsByClientCompany_Id(Long companyId);
+
+    boolean existsByTechnician_Id(Long technicianId);
 }

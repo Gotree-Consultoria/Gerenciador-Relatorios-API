@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador REST responsável pelo gerenciamento de empresas.
@@ -103,14 +104,24 @@ public class CompanyController {
      * Remove uma empresa do sistema.
      *
      * @param id ID da empresa a ser removida
-     * @return ResponseEntity com status HTTP 204 (NO_CONTENT)
-     * @throws ResourceNotFoundException se a empresa não for encontrada
+     * @return ResponseEntity com status HTTP 204 (NO_CONTENT) ou um erro 404/409
      * @secured Requer papel ADMIN
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteCompany(@PathVariable Long id) {
-        companyService.deleteCompany(id);
-        return ResponseEntity.noContent().build(); // Retorna status 204 No Content
+    public ResponseEntity<?> deleteCompany(@PathVariable Long id) {
+        try {
+            companyService.deleteCompany(id);
+            // 204 No Content: Sucesso, sem corpo de resposta
+            return ResponseEntity.noContent().build();
+
+        } catch (IllegalStateException e) {
+            // 409 Conflict: A regra de negócio (relatório em uso) impediu
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+
+        } catch (RuntimeException e) {
+            // 404 Not Found: A empresa não existia
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+        }
     }
 }

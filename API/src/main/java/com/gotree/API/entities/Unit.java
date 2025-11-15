@@ -2,7 +2,7 @@ package com.gotree.API.entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
+import jakarta.persistence.FetchType; // Este import está correto
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -15,7 +15,7 @@ import lombok.EqualsAndHashCode;
 @Entity
 @Table(name = "tb_unit")
 @Data
-@EqualsAndHashCode
+@EqualsAndHashCode(of = {"name", "cnpj"})
 public class Unit {
 
     @Id
@@ -24,7 +24,7 @@ public class Unit {
 
     private String name;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true)
     private String cnpj;
 
     @ManyToOne(fetch = FetchType.LAZY)

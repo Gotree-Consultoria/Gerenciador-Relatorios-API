@@ -7,11 +7,16 @@ import com.gotree.API.dto.company.UnitDTO;
 import com.gotree.API.entities.Company;
 import com.gotree.API.entities.Sector;
 import com.gotree.API.entities.Unit;
+import com.gotree.API.repositories.AepReportRepository;
 import com.gotree.API.repositories.CompanyRepository;
+import com.gotree.API.repositories.OccupationalRiskReportRepository;
+import com.gotree.API.repositories.TechnicalVisitRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set; // Import necessário
+import java.util.stream.Collectors; // Import necessário
 
 /**
  * Serviço responsável por gerenciar operações relacionadas a empresas.
@@ -20,18 +25,26 @@ import java.util.List;
  */
 @Service
 public class CompanyService {
-    
-    
 
     private final CompanyRepository companyRepository;
+
+    private final OccupationalRiskReportRepository riskReportRepository;
+    private final AepReportRepository aepReportRepository;
+    private final TechnicalVisitRepository technicalVisitRepository;
 
     /**
      * Construtor do serviço de empresas.
      *
      * @param companyRepository repositório para operações de persistência de empresas
      */
-    public CompanyService(CompanyRepository companyRepository) {
+    public CompanyService(CompanyRepository companyRepository,
+                          OccupationalRiskReportRepository riskReportRepository,
+                          AepReportRepository aepReportRepository,
+                          TechnicalVisitRepository technicalVisitRepository) {
         this.companyRepository = companyRepository;
+        this.riskReportRepository = riskReportRepository;
+        this.aepReportRepository = aepReportRepository;
+        this.technicalVisitRepository = technicalVisitRepository;
     }
 
     /**
@@ -43,57 +56,25 @@ public class CompanyService {
      */
     @Transactional
     public Company createCompany(CompanyRequestDTO dto) {
-        // É mais eficiente criar o validador uma vez
         CNPJValidator validator = new CNPJValidator();
 
-        // Validação do CNPJ da empresa principal com Stella
+        // 1. Validação do CNPJ principal
         try {
             validator.assertValid(dto.getCnpj());
         } catch (InvalidStateException e) {
-            // Lança uma exceção de argumento inválido
             throw new IllegalArgumentException("CNPJ da empresa principal é inválido: " + dto.getCnpj());
         }
 
-        // Validação para garantir que a empresa sempre tenha setores
-        if (dto.getSectors() == null || dto.getSectors().isEmpty()) {
-            throw new IllegalArgumentException("A empresa deve ter pelo menos um setor.");
-        }
-
+        // 2. Cria a entidade
         Company company = new Company();
-        company.setName(dto.getName()); // Chamada única, a duplicada foi removida
+        company.setName(dto.getName());
         company.setCnpj(dto.getCnpj());
 
-        // Itera sobre os DTOs das unidades para criar as entidades
-        if (dto.getUnits() != null) {
-            for (UnitDTO unitDto : dto.getUnits()) {
-                // Valida o CNPJ da unidade APENAS SE ele não for nulo ou vazio
-                if (unitDto.getCnpj() != null && !unitDto.getCnpj().trim().isEmpty()) {
-                    try {
-                        validator.assertValid(unitDto.getCnpj());
-                    } catch (InvalidStateException e) {
-                        throw new IllegalArgumentException("CNPJ da unidade '" + unitDto.getName() + "' é inválido: " + unitDto.getCnpj());
-                    }
-                }
-                Unit unit = new Unit();
-                unit.setName(unitDto.getName());
+        // 3. Usa os helpers para mapear as coleções
+        mapUnitsToCompany(company, dto.getUnits(), validator);
+        mapSectorsToCompany(company, dto.getSectors());
 
-                unit.setCnpj(unitDto.getCnpj());
-                unit.setCompany(company); // Associa a unidade à empresa
-
-                // Adicionar a unidade à lista da empresa
-                company.getUnits().add(unit);
-            }
-        }
-
-        // Lógica para Setores (obrigatório)
-        for (String sectorName : dto.getSectors()) {
-            Sector sector = new Sector();
-            sector.setName(sectorName);
-            sector.setCompany(company);
-            company.getSectors().add(sector);
-        }
-
-        //Salva a empresa (e suas unidades, por causa do Cascade) e retorna o objeto persistido
+        // 4. Salva a nova empresa
         return companyRepository.save(company);
     }
 
@@ -128,26 +109,213 @@ public class CompanyService {
      */
     @Transactional
     public Company updateCompany(Long id, CompanyRequestDTO dto) {
-        Company company = findById(id); // Reutiliza o método findById para buscar e tratar erro
+        // 1. Busca a empresa existente
+        Company company = findById(id);
+        CNPJValidator validator = new CNPJValidator();
 
-        // Valida CNPJ, se for alterado
-        // Atualiza os campos
+        // 2. Valida o CNPJ principal
+        validateCnpj(dto.getCnpj(), "principal", validator);
+
+        // 3. Atualiza os campos simples
         company.setName(dto.getName());
         company.setCnpj(dto.getCnpj());
 
-        // Lógica para atualizar/adicionar/remover unidades e setores
+        // 4. Reutiliza os helpers para ATUALIZAR as coleções
+        mergeUnits(company, dto.getUnits(), validator);
+        mergeSectors(company, dto.getSectors());
 
+        // 5. Salva as alterações
+        // O @Transactional já faria o commit, mas o save() é explícito
         return companyRepository.save(company);
     }
 
+    // --- MÉTODOS PRIVADOS (HELPERS) ---
+
     /**
-     * Remove uma empresa do sistema.
-     *
+     * Helper de MERGE para Unidades (Usado pelo updateCompany)
+     * Compara a lista do DTO com a do banco e faz Inserts, Updates ou Deletes.
+     */
+    private void mergeUnits(Company company, List<UnitDTO> unitDtos, CNPJValidator validator) {
+        // 1. Converte DTOs em um Set de entidades (com ID nulo)
+        Set<Unit> unitsFromDto = mapUnitDtosToEntities(unitDtos, company, validator);
+
+        // 2. Remove da coleção da empresa as unidades que não estão mais no DTO
+        // O @EqualsAndHashCode(of = {"name", "cnpj"}) na Unit.java é crucial aqui
+        // O orphanRemoval=true fará o DELETE no banco.
+        company.getUnits().retainAll(unitsFromDto);
+
+        // 3. Adiciona na coleção da empresa as unidades novas do DTO
+        // O Set garante que unidades "iguais" (mesmo name/cnpj) não sejam duplicadas.
+        // O CascadeType.ALL fará o INSERT no banco.
+        company.getUnits().addAll(unitsFromDto);
+    }
+
+    /**
+     * Helper de MERGE para Setores (Usado pelo updateCompany)
+     */
+    private void mergeSectors(Company company, List<String> sectorNames) {
+        // 1. Converte DTOs em um Set de entidades (com ID nulo)
+        Set<Sector> sectorsFromDto = mapSectorNamesToEntities(sectorNames, company);
+
+        // 2. Remove da coleção da empresa os setores que não estão mais no DTO
+        company.getSectors().retainAll(sectorsFromDto);
+
+        // 3. Adiciona na coleção da empresa os setores novos do DTO
+        company.getSectors().addAll(sectorsFromDto);
+    }
+
+
+    /**
+     * Helper que CONVERTE DTOs de Unidade em Entidades (sem salvar)
+     */
+    private Set<Unit> mapUnitDtosToEntities(List<UnitDTO> unitDtos, Company company, CNPJValidator validator) {
+        if (unitDtos == null) {
+            return Set.of(); // Retorna um Set vazio
+        }
+
+        return unitDtos.stream()
+                .map(unitDto -> {
+                    // Valida o CNPJ da unidade (se existir)
+                    validateCnpj(unitDto.getCnpj(), unitDto.getName(), validator);
+
+                    Unit unit = new Unit();
+                    unit.setName(unitDto.getName());
+                    unit.setCnpj(unitDto.getCnpj());
+                    unit.setCompany(company); // Define o relacionamento
+                    return unit;
+                })
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Helper que CONVERTE Nomes de Setores em Entidades (sem salvar)
+     */
+    private Set<Sector> mapSectorNamesToEntities(List<String> sectorNames, Company company) {
+        if (sectorNames == null || sectorNames.isEmpty()) {
+            throw new IllegalArgumentException("A empresa deve ter pelo menos um setor.");
+        }
+
+        return sectorNames.stream()
+                .map(name -> {
+                    Sector sector = new Sector();
+                    sector.setName(name);
+                    sector.setCompany(company); // Define o relacionamento
+                    return sector;
+                })
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Helper de VALIDAÇÃO de CNPJ
+     */
+    private void validateCnpj(String cnpj, String unitName, CNPJValidator validator) {
+        if (cnpj == null || cnpj.trim().isEmpty()) {
+            return; // É nulo, o que é permitido
+        }
+        try {
+            validator.assertValid(cnpj);
+        } catch (InvalidStateException e) {
+            String message = unitName.equals("principal")
+                    ? "CNPJ da empresa principal é inválido: " + cnpj
+                    : "CNPJ da unidade '" + unitName + "' é inválido: " + cnpj;
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    /**
+     * Remove uma empresa do sistema após verificar dependências.*
      * @param id identificador da empresa a ser removida
      * @throws RuntimeException se a empresa não for encontrada
+     * @throws IllegalStateException se a empresa estiver vinculada a relatórios
      */
+    @Transactional
     public void deleteCompany(Long id) {
-        Company company = findById(id);
-        companyRepository.delete(company);
+        // 1. Verifica se a empresa existe
+        if (!companyRepository.existsById(id)) {
+            throw new RuntimeException("Empresa não encontrada com o ID: " + id);
+        }
+
+        // 2. APLICA A SUA REGRA DE NEGÓCIO
+        if (riskReportRepository.existsByCompany_Id(id)) {
+            throw new IllegalStateException("Esta empresa não pode ser excluída, pois está sendo usada em Checklists de Risco.");
+        }
+
+        if (aepReportRepository.existsByCompany_Id(id)) {
+            throw new IllegalStateException("Esta empresa não pode ser excluída, pois está sendo usada em relatórios AEP.");
+        }
+
+        if (technicalVisitRepository.existsByClientCompany_Id(id)) {
+            throw new IllegalStateException("Esta empresa não pode ser excluída, pois está sendo usada em Relatórios de Visita.");
+        }
+
+        // 3. Se passou em todas as verificações, exclui
+        companyRepository.deleteById(id);
+    }
+
+
+    // --- MÉTODOS PRIVADOS (HELPERS) ---
+
+    /**
+     * Helper para mapear DTOs de Unidade para a Entidade Company.
+     * Esta lógica agora é usada tanto pelo create quanto pelo update.
+     */
+    private void mapUnitsToCompany(Company company, List<UnitDTO> unitDtos, CNPJValidator validator) {
+        // 1. Limpa a lista antiga (necessário para o update, não afeta o create)
+        // O 'orphanRemoval=true' na entidade Company deletará as unidades antigas.
+        company.getUnits().clear();
+
+        if (unitDtos == null) {
+            return; // Se a lista for nula, não há nada a fazer.
+        }
+
+        // 2. Converte os DTOs em Entidades
+        Set<Unit> newUnits = unitDtos.stream()
+                .map(unitDto -> {
+                    // Valida o CNPJ da unidade (se existir)
+                    if (unitDto.getCnpj() != null && !unitDto.getCnpj().trim().isEmpty()) {
+                        try {
+                            validator.assertValid(unitDto.getCnpj());
+                        } catch (InvalidStateException e) {
+                            throw new IllegalArgumentException("CNPJ da unidade '" + unitDto.getName() + "' é inválido: " + unitDto.getCnpj());
+                        }
+                    }
+
+                    Unit unit = new Unit();
+                    unit.setName(unitDto.getName());
+                    unit.setCnpj(unitDto.getCnpj());
+                    unit.setCompany(company); // Define o relacionamento
+                    return unit;
+                })
+                .collect(Collectors.toSet());
+
+        // 3. Adiciona a nova lista
+        // O 'CascadeType.ALL' na entidade Company inserirá os novos.
+        company.getUnits().addAll(newUnits);
+    }
+
+    /**
+     * Helper para mapear Nomes de Setores para a Entidade Company.
+     */
+    private void mapSectorsToCompany(Company company, List<String> sectorNames) {
+        // 1. Limpa a lista antiga
+        company.getSectors().clear();
+
+        // 2. Valida se a lista existe
+        if (sectorNames == null || sectorNames.isEmpty()) {
+            throw new IllegalArgumentException("A empresa deve ter pelo menos um setor.");
+        }
+
+        // 3. Converte os nomes em Entidades
+        Set<Sector> newSectors = sectorNames.stream()
+                .map(name -> {
+                    Sector sector = new Sector();
+                    sector.setName(name);
+                    sector.setCompany(company); // Define o relacionamento
+                    return sector;
+                })
+                .collect(Collectors.toSet());
+
+        // 4. Adiciona a nova lista
+        company.getSectors().addAll(newSectors);
     }
 }

@@ -7,6 +7,7 @@ import com.gotree.API.dto.user.UserRequestDTO;
 import com.gotree.API.dto.user.UserResponseDTO;
 import com.gotree.API.dto.user.UserUpdateDTO;
 import com.gotree.API.entities.User;
+import com.gotree.API.exceptions.ResourceNotFoundException;
 import com.gotree.API.mappers.UserMapper;
 import com.gotree.API.services.UserService;
 import jakarta.validation.Valid;
@@ -26,27 +27,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Controlador REST para gerenciamento de usuários.
- * Fornece endpoints para operações CRUD de usuários e funcionalidades relacionadas.
- * <p>
- * Endpoints Admin:
- * - GET /users - Lista todos os usuários
- * - GET /users/{id} - Busca usuário por ID
- * - POST /users/insert - Cria novo usuário
- * - POST /users/batch - Cria múltiplos usuários
- * - PUT /users/{id} - Atualiza usuário existente
- * - PUT /users/admin/reset-password/{id} - Redefine senha do usuário
- * - DELETE /users/{id} - Remove usuário
- * <p>
- * Endpoints Comuns (Admin e User):
- * - GET /users/me - Obtém dados do usuário logado
- * - PUT /users/me/change-password - Altera senha do usuário logado
- */
 @RestController
 @RequestMapping(value = "/users")
 public class UserController {
 	
+	
+
 
 	private final UserService userService;
 	private final UserMapper userMapper;
@@ -137,18 +123,22 @@ public class UserController {
 
 	}
 
-	/**
-	 * Remove um usuário do sistema.
-	 * Acesso restrito a administradores.
-	 *
-	 * @param id ID do usuário a ser removido
-	 * @return ResponseEntity sem conteúdo
-	 */
 	@DeleteMapping("/{id}")
 	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<UserResponseDTO> deleteUser(@PathVariable Long id) {
-		userService.deleteUser(id);
-		return ResponseEntity.noContent().build();
+	public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+		try {
+			userService.deleteUser(id);
+			// 204 No Content: Sucesso
+			return ResponseEntity.noContent().build();
+
+		} catch (IllegalStateException e) {
+			// 409 Conflict: A regra de negócio (relatório em uso) impediu
+			return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", e.getMessage()));
+
+		} catch (ResourceNotFoundException e) {
+			// 404 Not Found: O usuário não existia
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+		}
 	}
 
 	/**

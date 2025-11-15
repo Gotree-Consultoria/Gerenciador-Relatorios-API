@@ -56,4 +56,12 @@ public class AepReport {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "physiotherapist_id")
    private Physiotherapist physiotherapist;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id")
+    private Unit unit;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sector_id")
+    private Sector sector;
 }

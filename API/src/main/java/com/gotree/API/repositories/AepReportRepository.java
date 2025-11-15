@@ -38,4 +38,11 @@ public interface AepReportRepository extends JpaRepository<AepReport, Long> {
      * @return Total de relatórios do avaliador para a empresa
      */
     long countByEvaluatorAndCompanyId(User evaluator, Long companyId);
+
+    boolean existsByUnit_Id(Long unitId);
+    boolean existsBySector_Id(Long sectorId);
+
+    boolean existsByCompany_Id(Long companyId);
+
+    boolean existsByEvaluator_Id(Long evaluatorId);
 }

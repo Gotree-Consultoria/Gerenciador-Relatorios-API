@@ -18,4 +18,11 @@ public interface OccupationalRiskReportRepository extends JpaRepository<Occupati
 
     // (NOVO) Para KPIs do Admin (Contagem filtrada por técnico e empresa)
     long countByTechnicianAndCompanyId(User technician, Long companyId);
+
+    boolean existsByUnit_Id(Long unitId);
+    boolean existsBySector_Id(Long sectorId);
+
+    boolean existsByCompany_Id(Long companyId);
+
+    boolean existsByTechnician_Id(Long technicianId);
 }

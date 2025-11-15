@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.gotree.API.repositories.AepReportRepository;
+import com.gotree.API.repositories.OccupationalRiskReportRepository;
+import com.gotree.API.repositories.TechnicalVisitRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -37,11 +40,19 @@ public class UserService implements UserDetailsService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final AepReportRepository aepReportRepository;
+    private final OccupationalRiskReportRepository riskReportRepository;
+    private final TechnicalVisitRepository technicalVisitRepository;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserMapper userMapper) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, UserMapper userMapper,
+                       AepReportRepository aepReportRepository, OccupationalRiskReportRepository riskReportRepository,
+                       TechnicalVisitRepository technicalVisitRepository) {
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.aepReportRepository = aepReportRepository;
+        this.riskReportRepository = riskReportRepository;
+        this.technicalVisitRepository = technicalVisitRepository;
     }
 
     public List<User> findAll() {
@@ -72,30 +83,85 @@ public class UserService implements UserDetailsService {
      * @param dto DTO contendo os novos dados
      * @return Usuário atualizado
      * @throws ResourceNotFoundException se o usuário não for encontrado
+     * @throws DataIntegrityViolationException se o novo email já estiver em uso
+     * @throws CpfValidationException se o novo CPF for inválido
      */
     public User updateUser(Long id, UserUpdateDTO dto) {
+        // 1. Busca o usuário existente no banco
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário com ID: " + id + " não encontrado."));
 
+        // 2. Atualiza os campos simples (se não forem nulos no DTO)
         if (dto.getName() != null) {
             user.setName(dto.getName());
         }
         if (dto.getPhone() != null) {
             user.setPhone(dto.getPhone());
         }
+
+        // 3. Atualiza os campos do conselho (se não forem nulos)
+        if (dto.getSiglaConselhoClasse() != null) {
+            user.setSiglaConselhoClasse(dto.getSiglaConselhoClasse());
+        }
+        if (dto.getConselhoClasse() != null) {
+            user.setConselhoClasse(dto.getConselhoClasse());
+        }
+        if (dto.getEspecialidade() != null) {
+            user.setEspecialidade(dto.getEspecialidade());
+        }
+
+        // 4. Atualiza o EMAIL (com validação de duplicidade)
+        if (dto.getEmail() != null && !dto.getEmail().isBlank() && !dto.getEmail().equalsIgnoreCase(user.getEmail())) {
+            // Se o email mudou, verifica se o novo email já está em uso por OUTRO usuário
+            userRepository.findByEmail(dto.getEmail()).ifPresent(existingUser -> {
+                throw new DataIntegrityViolationException("Email já cadastrado: " + existingUser.getEmail());
+            });
+            user.setEmail(dto.getEmail());
+        }
+
+        // 5. Atualiza o CPF (com validação de formato)
+        if (dto.getCpf() != null) {
+            String cleanCpf = dto.getCpf().replaceAll("[^\\d]", "");
+            CPFValidator cpfValidator = new CPFValidator();
+            try {
+                // Valida o formato do CPF
+                cpfValidator.assertValid(cleanCpf);
+            } catch (InvalidStateException e) {
+                throw new CpfValidationException("CPF inválido: " + dto.getCpf());
+            }
+            // Salva o CPF (como está no DTO, mantendo a formatação se houver)
+            user.setCpf(dto.getCpf());
+        }
+
+        // 6. Salva o usuário atualizado no banco
         return userRepository.save(user);
     }
 
     /**
-     * Remove um usuário do sistema.
-     *
+     * Remove um usuário do sistema após verificar dependências.*
      * @param id ID do usuário a ser removido
      * @throws ResourceNotFoundException se o usuário não for encontrado
+     * @throws IllegalStateException se o usuário estiver vinculado a relatórios
      */
+    @Transactional
     public void deleteUser(Long id) {
+        // 1. Verifica se o usuário existe
         if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Usuário com ID: " + id + "não encontrado");
+            throw new ResourceNotFoundException("Usuário com ID: " + id + " não encontrado");
         }
+
+        // 2. APLICA A REGRA DE NEGÓCIO
+        if (technicalVisitRepository.existsByTechnician_Id(id)) {
+            throw new IllegalStateException("Este usuário não pode ser excluído, pois está vinculado a Relatórios de Visita.");
+        }
+        if (riskReportRepository.existsByTechnician_Id(id)) {
+            throw new IllegalStateException("Este usuário não pode ser excluído, pois está vinculado a Checklists de Risco.");
+        }
+        if (aepReportRepository.existsByEvaluator_Id(id)) {
+            throw new IllegalStateException("Este usuário não pode ser excluído, pois está vinculado a relatórios AEP.");
+        }
+
+        // 3. Se passou, deleta
         userRepository.deleteById(id);
     }
 
@@ -116,10 +182,6 @@ public class UserService implements UserDetailsService {
 
         userRepository.save(user);
     }
-
-    // endregion
-
-    // region Batch Insert
 
     /**
      * Realiza a inserção em lote de múltiplos usuários.
@@ -145,10 +207,6 @@ public class UserService implements UserDetailsService {
         return new BatchUserInsertResponseDTO(successUsers, failedUsers);
     }
 
-    // endregion
-
-    // region Validation
-
     /**
      * Valida os dados do usuário antes da inserção.
      * @param userDTO DTO contendo os dados do usuário
@@ -169,7 +227,6 @@ public class UserService implements UserDetailsService {
             throw new CpfValidationException("CPF inválido: " + userDTO.getCpf());
         }
     }
-
 
     /**
      * Altera a senha do usuário.
@@ -198,10 +255,6 @@ public class UserService implements UserDetailsService {
         // 5. Salva as alterações no banco de dados
         userRepository.save(user);
     }
-
-    // endregion
-
-    // region Spring Security Integration
 
     /**
      * Carrega os detalhes do usuário para autenticação no Spring Security.
