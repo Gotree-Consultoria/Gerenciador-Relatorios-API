@@ -1,0 +1,27 @@
+# === Arquivos Sensíveis ===
+# Ignora o .env que contém os segredos de produção
+.env
+
+# Ignora arquivos de properties com senhas locais ou de docker
+# USANDO O CAMINHO CORRETO
+API/src/main/resources/application-local.properties
+API/src/main/resources/application-docker.properties
+
+# === Build Artifacts ===
+# Ignora a pasta target principal do Maven
+API/target/
+
+# === IDE Files ===
+# Ignora pastas de IDE (IntelliJ, VSCode, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# === Arquivos do Maven Wrapper ===
+.mvn/wrapper/maven-wrapper.jar
+
+# === Outros ===
+# O HELP.md é do Maven, geralmente pode ser ignorado
+HELP.md

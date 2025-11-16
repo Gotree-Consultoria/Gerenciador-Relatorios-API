@@ -13,9 +13,9 @@
 	</parent>
 
 	<groupId>com.gotree</groupId>
-	<artifactId>checklist</artifactId>
+	<artifactId>gerenciador-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>checklist</name>
+	<name>Gerenciador de Relatórios</name>
 	<description>Automação segura de geração e assinatura de PDFs.</description>
 
 	<properties>

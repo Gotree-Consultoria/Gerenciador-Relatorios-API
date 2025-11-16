@@ -21,7 +21,7 @@ import java.util.Optional;
  * Os dados do usuário de teste são fixos no código.
  */
 @Component
-@Profile({"dev", "local", "docker"}) // Executa nos perfis de desenvolvimento ou local
+@Profile({"dev", "local"}) // Executa nos perfis de desenvolvimento ou local
 public class SeedDatabaseWithAdminUser implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SeedDatabaseWithAdminUser.class);
