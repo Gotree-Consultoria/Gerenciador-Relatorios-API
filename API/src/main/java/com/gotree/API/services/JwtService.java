@@ -19,13 +19,13 @@ import io.jsonwebtoken.security.Keys;
  */
 @Service
 public class JwtService {
-    
-    
 
+
+// @Value("${jwt.secret_FILE}") prod
     @Value("${jwt.secret}")
     private String secretKey;
 
-    private static final long EXPIRATION_TIME = 864000000; // 1 Dia
+    private static final long EXPIRATION_TIME = 86_400_000L; // 1 dia
 
     // Gera o token JWT com base nos dados do usuário
 
