@@ -25,3 +25,5 @@ API/target/
 # === Outros ===
 # O HELP.md é do Maven, geralmente pode ser ignorado
 HELP.md
+
+local_jwt_secret.txt

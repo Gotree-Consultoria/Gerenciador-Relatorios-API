@@ -1,5 +1,8 @@
 package com.gotree.API.services;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.Key;
 import java.util.Date;
 import java.util.function.Function;
@@ -21,9 +24,8 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
 
-// @Value("${jwt.secret_FILE}") prod
-    @Value("${jwt.secret}")
-    private String secretKey;
+    @Value("${jwt.secret_path}")
+    private String secretKeyPath;
 
     private static final long EXPIRATION_TIME = 86_400_000L; // 1 dia
 
@@ -127,8 +129,14 @@ public class JwtService {
      * @return Key objeto contendo a chave de assinatura
      */
     private Key getSignInKey() {
-        byte[] keyBytes = secretKey.getBytes();
-        return Keys.hmacShaKeyFor(keyBytes);
+        try {
+            // Lê os bytes do arquivo no caminho que foi injetado
+            byte[] keyBytes = Files.readAllBytes(Paths.get(secretKeyPath));
+            return Keys.hmacShaKeyFor(keyBytes);
+        } catch (IOException e) {
+            // Isso vai impedir a API de subir se o secret não for encontrado
+            throw new RuntimeException("Falha ao ler o arquivo da chave secreta do JWT", e);
+        }
     }
 
 }
