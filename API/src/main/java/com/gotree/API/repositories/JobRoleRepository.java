@@ -8,4 +8,6 @@ import java.util.List;
 public interface JobRoleRepository extends JpaRepository<JobRole, Long> {
     List<JobRole> findByCompanyOrderByNameAsc(Company company);
     boolean existsByNameAndCompany(String name, Company company);
+
+    void deleteByCompanyId(Long companyId);
 }

@@ -9,6 +9,7 @@ import com.gotree.API.entities.Sector;
 import com.gotree.API.entities.Unit;
 import com.gotree.API.repositories.AepReportRepository;
 import com.gotree.API.repositories.CompanyRepository;
+import com.gotree.API.repositories.JobRoleRepository;
 import com.gotree.API.repositories.OccupationalRiskReportRepository;
 import com.gotree.API.repositories.TechnicalVisitRepository;
 import jakarta.transaction.Transactional;
@@ -31,6 +32,7 @@ public class CompanyService {
     private final OccupationalRiskReportRepository riskReportRepository;
     private final AepReportRepository aepReportRepository;
     private final TechnicalVisitRepository technicalVisitRepository;
+    private final JobRoleRepository jobRoleRepository;
 
     /**
      * Construtor do serviço de empresas.
@@ -40,11 +42,13 @@ public class CompanyService {
     public CompanyService(CompanyRepository companyRepository,
                           OccupationalRiskReportRepository riskReportRepository,
                           AepReportRepository aepReportRepository,
-                          TechnicalVisitRepository technicalVisitRepository) {
+                          TechnicalVisitRepository technicalVisitRepository,
+                          JobRoleRepository jobRoleRepository) {
         this.companyRepository = companyRepository;
         this.riskReportRepository = riskReportRepository;
         this.aepReportRepository = aepReportRepository;
         this.technicalVisitRepository = technicalVisitRepository;
+        this.jobRoleRepository = jobRoleRepository;
     }
 
     /**
@@ -248,6 +252,9 @@ public class CompanyService {
             throw new IllegalStateException("Esta empresa não pode ser excluída, pois está sendo usada em Relatórios de Visita.");
         }
 
+        // Se não tem relatórios, limpar os cargos vinculados à empresa
+        jobRoleRepository.deleteByCompanyId(id);
+
         // 3. Se passou em todas as verificações, exclui
         companyRepository.deleteById(id);
     }
@@ -297,12 +304,12 @@ public class CompanyService {
      * Helper para mapear Nomes de Setores para a Entidade Company.
      */
     private void mapSectorsToCompany(Company company, List<String> sectorNames) {
-        // 1. Limpa a lista antiga
+        // 1. Limpa a lista antiga (Isso garante que se o usuário enviou vazio, a empresa ficará sem setores)
         company.getSectors().clear();
 
-        // 2. Valida se a lista existe
+        // 2. CORREÇÃO: Se a lista for nula ou vazia, apenas encerra o método (sem erro)
         if (sectorNames == null || sectorNames.isEmpty()) {
-            throw new IllegalArgumentException("A empresa deve ter pelo menos um setor.");
+            return;
         }
 
         // 3. Converte os nomes em Entidades
