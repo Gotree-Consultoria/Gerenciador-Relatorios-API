@@ -3,6 +3,8 @@ package com.gotree.API.services;
 import br.com.caelum.stella.validation.CNPJValidator;
 import br.com.caelum.stella.validation.InvalidStateException;
 import com.gotree.API.dto.company.CompanyRequestDTO;
+import com.gotree.API.dto.company.CompanyResponseDTO;
+import com.gotree.API.dto.company.SectorResponseDTO;
 import com.gotree.API.dto.company.UnitDTO;
 import com.gotree.API.entities.Company;
 import com.gotree.API.entities.Sector;
@@ -12,7 +14,7 @@ import com.gotree.API.repositories.CompanyRepository;
 import com.gotree.API.repositories.JobRoleRepository;
 import com.gotree.API.repositories.OccupationalRiskReportRepository;
 import com.gotree.API.repositories.TechnicalVisitRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -111,13 +113,46 @@ public class CompanyService {
     }
 
     /**
-     * Retorna empresas de forma paginada.
-     *
-     * @param pageable objeto contendo informações de paginação (página atual, tamanho, ordenação)
-     * @return Uma página (Page) contendo a lista de empresas e metadados
+     * Retorna empresas de forma paginada, JÁ convertidas para DTO.
+     * O @Transactional(readOnly = true) mantém a conexão aberta durante a conversão.
      */
-    public Page<Company> findAllPaginated(Pageable pageable) {
-        return companyRepository.findAll(pageable);
+    @Transactional(readOnly = true)
+    public Page<CompanyResponseDTO> findAllPaginated(Pageable pageable) {
+        Page<Company> companies = companyRepository.findAll(pageable);
+
+        // Converte cada Empresa (Entity) para DTO
+        return companies.map(this::mapToResponseDto);
+    }
+
+    // --- Helper de Conversão (Pode ficar no final da classe) ---
+    private CompanyResponseDTO mapToResponseDto(Company company) {
+        CompanyResponseDTO dto = new CompanyResponseDTO();
+        dto.setId(company.getId());
+        dto.setName(company.getName());
+        dto.setCnpj(company.getCnpj());
+
+        // Como estamos dentro da transação, o getUnits() funciona aqui!
+
+        // Mapeia Unidades
+        List<UnitDTO> unitDtos = company.getUnits().stream().map(u -> {
+            UnitDTO uDto = new UnitDTO();
+            uDto.setId(u.getId()); // Se UnitDTO tiver ID
+            uDto.setName(u.getName());
+            uDto.setCnpj(u.getCnpj());
+            return uDto;
+        }).collect(Collectors.toList());
+        dto.setUnits(unitDtos);
+
+        // Mapeia Setores
+        List<SectorResponseDTO> sectorDtos = company.getSectors().stream().map(s -> {
+            SectorResponseDTO sDto = new SectorResponseDTO();
+            sDto.setId(s.getId());
+            sDto.setName(s.getName());
+            return sDto;
+        }).collect(Collectors.toList());
+        dto.setSectors(sectorDtos);
+
+        return dto;
     }
 
     /**

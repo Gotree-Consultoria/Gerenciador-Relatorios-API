@@ -91,10 +91,12 @@ public class CompanyController {
      * Exemplo de chamada: GET /companies?page=0&size=10&sort=name,asc
      */
     @GetMapping
-    public ResponseEntity<Page<Company>> getAll(
-            @PageableDefault(page = 0, size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    public ResponseEntity<Page<CompanyResponseDTO>> getAll(
+                                                            @PageableDefault(page = 0, size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
     ) {
-        Page<Company> companies = companyService.findAllPaginated(pageable);
+        // O serviço agora retorna Page<CompanyResponseDTO>
+        Page<CompanyResponseDTO> companies = companyService.findAllPaginated(pageable);
+
         return ResponseEntity.ok(companies);
     }
 
