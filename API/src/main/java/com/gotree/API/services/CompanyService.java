@@ -170,14 +170,40 @@ public class CompanyService {
      * Helper de MERGE para Setores (Usado pelo updateCompany)
      */
     private void mergeSectors(Company company, List<String> sectorNames) {
-        // 1. Converte DTOs em um Set de entidades (com ID nulo)
+        // 1. Converte a lista de nomes do Excel em Entidades (novas ou existentes)
         Set<Sector> sectorsFromDto = mapSectorNamesToEntities(sectorNames, company);
 
-        // 2. Remove da coleção da empresa os setores que não estão mais no DTO
+        // 2. Identifica quais setores estão no banco mas NÃO estão no Excel (Candidatos a exclusão)
+        // Criamos uma cópia para não alterar a lista original durante a iteração
+        Set<Sector> sectorsToDelete = new java.util.HashSet<>(company.getSectors());
+        sectorsToDelete.removeAll(sectorsFromDto);
+
+        // 3. Verifica quais candidatos podem realmente ser excluídos
+        for (Sector sectorToDelete : sectorsToDelete) {
+            // Se o setor já tem ID (está no banco) e está em uso, NÃO DELETAMOS
+            if (sectorToDelete.getId() != null && isSectorInUse(sectorToDelete.getId())) {
+                // Mantemos o setor na lista do DTO "artificialmente" para que o JPA não o exclua
+                sectorsFromDto.add(sectorToDelete);
+            }
+        }
+
+        // 4. Agora é seguro fazer o retainAll.
+        // Ele vai manter:
+        // a) O que veio no Excel
+        // b) O que não veio no Excel, mas está em uso no banco (preservado no passo 3)
         company.getSectors().retainAll(sectorsFromDto);
 
-        // 3. Adiciona na coleção da empresa os setores novos do DTO
+        // 5. Adiciona os novos (que vieram no Excel e não existiam)
         company.getSectors().addAll(sectorsFromDto);
+    }
+
+    /**
+     * Verifica se o setor está sendo usado em qualquer relatório ou visita.
+     */
+    private boolean isSectorInUse(Long sectorId) {
+        return riskReportRepository.existsBySector_Id(sectorId) ||
+                aepReportRepository.existsBySector_Id(sectorId) ||
+                technicalVisitRepository.existsBySector_Id(sectorId);
     }
 
 

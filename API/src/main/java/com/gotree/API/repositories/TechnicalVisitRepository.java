@@ -102,4 +102,6 @@ public interface TechnicalVisitRepository extends JpaRepository<TechnicalVisit, 
     boolean existsByClientCompany_Id(Long companyId);
 
     boolean existsByTechnician_Id(Long technicianId);
+
+    boolean existsBySector_Id(Long sectorId);
 }
