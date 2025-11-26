@@ -36,14 +36,20 @@ public class VisitFinding {
 
     private String photoPath1; // Caminho para a imagem salva no servidor
     private String photoPath2; // Pode ser nulo
-    @Lob
+
+    @Column(columnDefinition = "TEXT")
     private String description;
-    @Lob
+
+    @Column(columnDefinition = "TEXT")
     private String consequences;
-    @Lob
+
+    @Column(columnDefinition = "TEXT")
     private String legalGuidance;
-    private String responsible;
+
+    @Column(columnDefinition = "TEXT")
     private String penalties;
+
+    private String responsible;
 
     @Enumerated(EnumType.STRING)
     private Priority priority;

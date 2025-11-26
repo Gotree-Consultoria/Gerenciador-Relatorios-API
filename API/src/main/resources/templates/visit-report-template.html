@@ -27,69 +27,111 @@
         }
 
         /* Assinaturas */
-        .signatures { margin-top: 25px; width: 100%; page-break-inside: avoid; text-align: center; }
-        .signatures table { width: 90%; margin: 0 auto; border-collapse: collapse; table-layout: fixed; }
-        .signature-cell { width: 50%; vertical-align: middle; text-align: center; padding: 0 10px; }
+        .signatures {
+            margin-top: 40px;
+            width: 100%;
+            page-break-inside: avoid;    /* evita quebra dentro do bloco de assinaturas */
+            break-inside: avoid;
+            -webkit-column-break-inside: avoid;
+        }
 
-        /* container interno com altura fixa e posicionamento absoluto dos elementos */
-        .sig-inner {
-            display: inline-block;
-            width: 320px;        /* largura fixa para cada assinatura em landscape */
-            height: 160px;       /* aumenta altura para dar espaço e evitar overlap */
-            position: relative;
+        .signatures table {
+            width: 95%;
+            margin: 0 auto;
+            border-collapse: collapse;
+            table-layout: fixed;
+            page-break-inside: avoid;    /* proteção adicional */
+            break-inside: avoid;
+        }
+
+        .signature-cell {
+            vertical-align: bottom;
+            padding: 0 20px;
             text-align: center;
-            vertical-align: middle;
-            margin: 0 auto;
+            page-break-inside: avoid;    /* evita quebra dentro de cada célula */
+            break-inside: avoid;
         }
 
-        /* imagem centralizada e posicionada pela base (garante baseline uniforme) */
-        .sig-inner img {
-            position: absolute;
-            bottom: 90px;        /* base da imagem mantida acima da linha */
-            left: 50%;
-            transform: translateX(-50%);
-            height: 64px;        /* altura uniforme para todas as assinaturas */
-            max-height: 64px;
+        /* Layout em grid: imagem | linha | metadados */
+        .sig-inner {
+            display: grid;
+            grid-template-rows: auto 2px auto; /* a linha tem altura explícita */
+            justify-items: center;
+            align-items: start;
+            row-gap: 0.35cm; /* reduzido para diminuir espaço vertical */
+            width: 100%;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .sig-image-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end; /* base alinhada para "flutuar" acima da linha */
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 1.6cm; /* reserva espaço para a imagem */
+            overflow: visible;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Imagem da assinatura: limitamos a altura para evitar overlap */
+        .sig-image-container img {
+            display: inline-block;
+            max-height: 1.2cm; /* menor para garantir distância até a linha */
             width: auto;
-            max-width: 100%;
             object-fit: contain;
-            display: block;
-            z-index: 3;
+            vertical-align: bottom;
+            margin: 0;
+            padding: 0;
+            z-index: 5;
         }
 
-        /* linha de assinatura fixa e centralizada */
+        /* Proteção contra inline styles */
+        .sig-image-container img[style] {
+            max-height: 1.2cm !important;
+            width: auto !important;
+            object-fit: contain !important;
+            display: inline-block !important;
+        }
+
+        /* Linha de assinatura sempre visível: ocupa a segunda track do grid */
         .signature-line {
-            position: absolute;
-            left: 10%;
-            right: 10%;
-            bottom: 72px;        /* linha fica abaixo da imagem e acima dos metadados */
-            border-top: 1px solid #333;
-            height: 0;
-            margin: 0 auto;
+            grid-row: 2;
+            width: 90%;
+            height: 2px;               /* define espessura clara e consistente */
+            background-color: #333;
+            align-self: center;
+            margin: 0;
             z-index: 2;
         }
 
-        /* metadados (nome, registro, data) sempre ancorados na base, abaixo da linha */
+        /* Metadados (nome, registro, data) */
         .signature-meta {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: 8px;         /* garante que o nome fique visivelmente abaixo da linha */
+            grid-row: 3;
+            display: block;
+            width: 100%;
             text-align: center;
-            max-width: 320px;
-            margin: 0 auto;
-            z-index: 4;
+            margin-top: 0.08cm; /* pequeno espaçamento após a linha */
         }
-        .signature-meta p { margin: 0; }
-        .signature-meta p.meta { font-size: 9pt; margin-top: 2px; color: #222; }
-        .signature-meta p.submeta { font-size: 8pt; margin-top: 4px; color: #666; }
+        .signature-meta p { margin: 0 0 4px 0; line-height: 1.18; } /* reduzir espaço entre linhas */
+        .signature-meta p.name { font-weight: bold; font-size: 10pt; color: #000; margin-bottom: 2px; }
+        .signature-meta p.meta { font-size: 9pt; color: #333; margin-bottom: 2px; }
+        .signature-meta p.submeta { font-size: 8pt; color: #666; margin-top: 2px; }
 
-        /* fallback visual quando não há assinatura - mantém espaço e linha visível */
-        .sig-empty .signature-line { border-top-style: dashed; opacity: 0.6; }
-        .sig-empty img { display: none; }
+        .sig-empty .signature-line { border-top-style: dashed; opacity: 0.5; }
 
-        @media print {
-            .sig-inner { -webkit-print-color-adjust: exact; }
+        /* Impressão: ajuste fino */
+        @media print and (min-resolution: 150dpi) {
+            .sig-image-container img { max-height: 1.0cm !important; }
+            .sig-inner { row-gap: 0.25cm; }
+        }
+
+        /* Preview em telas pequenas */
+        @media (max-width: 800px) {
+            .sig-image-container img { max-height: 0.9cm !important; }
+            .sig-inner { row-gap: 0.28cm; }
         }
 
     </style>
@@ -196,38 +238,50 @@
     <table>
         <tbody>
         <tr>
-            <!-- Técnico (esquerda) -->
             <td class="signature-cell" th:classappend="${visit.technicianSignatureImageBase64 == null} ? ' sig-empty' : ''">
                 <div class="sig-inner">
-                    <img th:if="${visit.technicianSignatureImageBase64}"
-                         th:src="'data:image/png;base64,' + ${visit.technicianSignatureImageBase64}"
-                         alt="Assinatura do Técnico" />
-                    <span class="signature-line"></span>
+                    <div class="sig-image-container">
+                        <img th:if="${visit.technicianSignatureImageBase64}"
+                             th:src="'data:image/png;base64,' + ${visit.technicianSignatureImageBase64}"
+                             alt="Assinatura do Técnico" />
+                    </div>
+
+                    <div class="signature-line"></div>
+
                     <div class="signature-meta">
-                        <p th:text="${visit.technician?.name}" style="font-weight: bold;"></p>
+                        <p class="name" th:text="${visit.technician?.name}"></p>
+
                         <p th:if="${visit.technician?.conselhoClasse != null}" class="meta"
                            th:text="${visit.technician.conselhoClasse + ' | ' + visit.technician.siglaConselhoClasse}"></p>
+
                         <p th:if="${visit.technician?.especialidade != null}" class="meta"
                            th:text="${visit.technician.especialidade}"></p>
+
                         <p th:if="${visit.technicianSignedAt != null}" class="submeta"
                            th:text="${'Assinado em: ' + #temporals.format(visit.technicianSignedAt, 'dd/MM/yyyy HH:mm:ss')}"></p>
                     </div>
                 </div>
             </td>
 
-            <!-- Cliente (direita) -->
             <td class="signature-cell" th:classappend="${visit.clientSignatureImageBase64 == null} ? ' sig-empty' : ''">
                 <div class="sig-inner">
-                    <img th:if="${visit.clientSignatureImageBase64}"
-                         th:src="'data:image/png;base64,' + ${visit.clientSignatureImageBase64}"
-                         alt="Assinatura do Cliente" />
-                    <span class="signature-line"></span>
+                    <div class="sig-image-container">
+                        <img th:if="${visit.clientSignatureImageBase64}"
+                             th:src="'data:image/png;base64,' + ${visit.clientSignatureImageBase64}"
+                             alt="Assinatura do Cliente" />
+                    </div>
+
+                    <div class="signature-line"></div>
+
                     <div class="signature-meta">
-                        <p th:text="${visit.clientSignerName}" style="font-weight: bold;"></p>
+                        <p class="name" th:text="${visit.clientSignerName}"></p>
                         <p class="meta">Responsável</p>
+
                         <p th:if="${visit.clientSignedAt != null}" class="submeta">
                             <span th:text="${'Assinado em: ' + #temporals.format(visit.clientSignedAt, 'dd/MM/yyyy HH:mm:ss')}" style="display:block;"></span>
-                            <span th:if="${visit.clientSignatureLatitude != null}" th:text="${'Lat ' + visit.clientSignatureLatitude + ', Lon ' + visit.clientSignatureLongitude}" style="display:block; margin-top:2px;"></span>
+                            <span th:if="${visit.clientSignatureLatitude != null}"
+                                  th:text="${'Lat ' + visit.clientSignatureLatitude + ', Lon ' + visit.clientSignatureLongitude}"
+                                  style="display:block; margin-top:1px;"></span>
                         </p>
                     </div>
                 </div>
