@@ -15,4 +15,10 @@ public class CreateEventDTO {
 
     @NotBlank(message = "O tipo de evento é obrigatório.")
     private String eventType;
+
+    @NotNull(message = "O turno é obrigatório.")
+    private String shift; // "MANHA" ou "TARDE"
+
+    private String clientName;
+    private String manualObservation;
 }

@@ -5,6 +5,7 @@ import com.gotree.API.dto.risk.SaveRiskReportRequestDTO;
 import com.gotree.API.entities.OccupationalRiskReport;
 import com.gotree.API.services.RiskChecklistService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +38,7 @@ public class RiskChecklistController {
      * Busca os dados detalhados de um relatório de risco para edição.
      */
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<SaveRiskReportRequestDTO> getReportDetailsForEdit(@PathVariable Long id, Authentication authentication) {
         var user = ((CustomUserDetails) authentication.getPrincipal()).user();
 
@@ -54,6 +56,7 @@ public class RiskChecklistController {
      * @return ResponseEntity contendo mensagem de sucesso e ID do relatório criado
      */
     @PostMapping
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> create(@RequestBody SaveRiskReportRequestDTO dto, Authentication authentication) {
         var user = ((CustomUserDetails) authentication.getPrincipal()).user();
         OccupationalRiskReport report = service.createAndGeneratePdf(dto, user);
@@ -70,6 +73,7 @@ public class RiskChecklistController {
      * @return ResponseEntity contendo mensagem de sucesso e ID do relatório atualizado
      */
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> update(@PathVariable Long id, @RequestBody SaveRiskReportRequestDTO dto, Authentication authentication) {
         var user = ((CustomUserDetails) authentication.getPrincipal()).user();
         OccupationalRiskReport report = service.updateReport(id, dto, user);

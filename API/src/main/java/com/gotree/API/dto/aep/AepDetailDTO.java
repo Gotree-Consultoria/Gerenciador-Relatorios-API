@@ -8,6 +8,8 @@ import java.util.List;
 public class AepDetailDTO {
     private Long id;
     private Long companyId;
+    private String companyName;
+    private String companyCnpj;
     private LocalDate evaluationDate;
     private String evaluatedFunction;
     private Long physiotherapistId;

@@ -200,13 +200,23 @@ public class RiskChecklistService {
         dto.setCompanyId(report.getCompany().getId());
         dto.setUnitId(report.getUnit() != null ? report.getUnit().getId() : null);
         dto.setSectorId(report.getSector() != null ? report.getSector().getId() : null);
+        dto.setTechnicianSignatureImageBase64(report.getTechnicianSignatureImageBase64()); // Importante para o front saber se já assinou
 
-        // 4. Converte a lista de funções (o mais complexo)
+        // 4. Converte a lista de funções (CORREÇÃO DO LAZY INITIALIZATION AQUI)
         List<EvaluatedFunctionRequestDTO> functionDtos = report.getEvaluatedFunctions().stream()
                 .map(funcEntity -> {
                     EvaluatedFunctionRequestDTO funcDto = new EvaluatedFunctionRequestDTO();
                     funcDto.setFunctionName(funcEntity.getFunctionName());
-                    funcDto.setSelectedRiskCodes(funcEntity.getSelectedRiskCodes());
+
+                    // --- CORREÇÃO ---
+                    // Verifica se não é nulo e cria uma NOVA lista para forçar o carregamento imediato
+                    if (funcEntity.getSelectedRiskCodes() != null) {
+                        funcDto.setSelectedRiskCodes(new ArrayList<>(funcEntity.getSelectedRiskCodes()));
+                    } else {
+                        funcDto.setSelectedRiskCodes(new ArrayList<>());
+                    }
+                    // ----------------
+
                     return funcDto;
                 }).collect(Collectors.toList());
 

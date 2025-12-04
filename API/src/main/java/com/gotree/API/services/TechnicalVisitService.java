@@ -8,6 +8,8 @@ import com.gotree.API.entities.TechnicalVisit;
 import com.gotree.API.entities.Unit;
 import com.gotree.API.entities.User;
 import com.gotree.API.entities.VisitFinding;
+import com.gotree.API.enums.Shift;
+import com.gotree.API.repositories.AgendaEventRepository;
 import com.gotree.API.repositories.CompanyRepository;
 import com.gotree.API.repositories.SectorRepository;
 import com.gotree.API.repositories.TechnicalVisitRepository;
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Base64;
@@ -41,27 +44,30 @@ public class TechnicalVisitService {
     private final ReportService reportService; // Para gerar o PDF
     private final UnitRepository unitRepository;
     private final SectorRepository sectorRepository;
+    private final AgendaEventRepository agendaEventRepository;
 
 
     @Value("${file.storage.path}")
     private String fileStoragePath;
 
-    @Value("${app.generating-company.name}")
-    private String generatingCompanyName;
-
-    @Value("${app.generating-company.cnpj}")
-    private String generatingCompanyCnpj;
+//    @Value("${app.generating-company.name}")
+//    private String generatingCompanyName;
+//
+//    @Value("${app.generating-company.cnpj}")
+//    private String generatingCompanyCnpj;
 
     public TechnicalVisitService(TechnicalVisitRepository technicalVisitRepository,
                                  CompanyRepository companyRepository,
                                  ReportService reportService,
                                  UnitRepository unitRepository,
-                                 SectorRepository sectorRepository) {
+                                 SectorRepository sectorRepository,
+                                 AgendaEventRepository agendaEventRepository) {
         this.technicalVisitRepository = technicalVisitRepository;
         this.companyRepository = companyRepository;
         this.reportService = reportService;
         this.unitRepository = unitRepository;
         this.sectorRepository = sectorRepository;
+        this.agendaEventRepository = agendaEventRepository;
 
     }
 
@@ -78,6 +84,20 @@ public class TechnicalVisitService {
         // 1. Buscar a empresa cliente
         Company clientCompany = companyRepository.findById(dto.getClientCompanyId())
                 .orElseThrow(() -> new RuntimeException("Empresa cliente com ID " + dto.getClientCompanyId() + " não encontrada."));
+
+        if (dto.getNextVisitDate() != null && dto.getNextVisitShift() != null) {
+
+            boolean busy = checkNextVisitAvailability(
+                    dto.getNextVisitDate(),
+                    dto.getNextVisitShift(),
+                    technician
+            );
+
+            if (busy) {
+                throw new IllegalStateException("BLOQUEIO DE AGENDA: Você já possui um compromisso agendado para o dia "
+                        + dto.getNextVisitDate() + " no turno da " + dto.getNextVisitShift() + ".");
+            }
+        }
 
         Unit unit = dto.getUnitId() != null ? unitRepository.findById(dto.getUnitId()).orElse(null) : null;
         Sector sector = dto.getSectorId() != null ? sectorRepository.findById(dto.getSectorId()).orElse(null) : null;
@@ -97,6 +117,17 @@ public class TechnicalVisitService {
 
         // Mapear os dados do agendamento da próxima visita
         visit.setNextVisitDate(dto.getNextVisitDate());
+
+        if (dto.getNextVisitShift() != null && !dto.getNextVisitShift().isBlank()) {
+            try {
+                // Converte String "MANHA" -> Enum Shift.MANHA
+                visit.setNextVisitShift(Shift.valueOf(dto.getNextVisitShift().toUpperCase()));
+            } catch (IllegalArgumentException e) {
+                // Se vier algo inválido, você pode ignorar ou lançar erro.
+                // Aqui estou logando e ignorando para não quebrar o fluxo.
+                System.err.println("Turno inválido recebido: " + dto.getNextVisitShift());
+            }
+        }
 
         // Mapear dados das assinaturas
         visit.setTechnicianSignatureImageBase64(stripDataUrlPrefix(dto.getTechnicianSignatureImageBase64()));
@@ -122,8 +153,8 @@ public class TechnicalVisitService {
         // 5. Gerar o PDF
         Map<String, Object> templateData = new HashMap<>();
         templateData.put("visit", savedVisit);
-        templateData.put("generatingCompanyName", generatingCompanyName);
-        templateData.put("generatingCompanyCnpj", generatingCompanyCnpj);
+//        templateData.put("generatingCompanyName", generatingCompanyName);
+//        templateData.put("generatingCompanyCnpj", generatingCompanyCnpj);
 
         byte[] pdfBytes = reportService.generatePdfFromHtml("visit-report-template", templateData);
 
@@ -261,5 +292,37 @@ public class TechnicalVisitService {
 
         // 4. APAGA O REGISTRO DO BANCO DE DADOS
         technicalVisitRepository.deleteById(visitId);
+    }
+
+    /**
+     * Verifica se a DATA DA PRÓXIMA VISITA (Agendamento) está livre.
+     */
+    @Transactional(readOnly = true)
+    public boolean checkNextVisitAvailability(LocalDate nextDate, String nextShiftStr, User technician) {
+        if (nextDate == null || nextShiftStr == null) return false; // Se não escolheu data, não tem conflito
+
+        try {
+            Shift shift = Shift.valueOf(nextShiftStr.toUpperCase());
+
+            // 1. Verifica se já existe OUTRA visita agendada para essa data/turno
+            boolean visitConflict = technicalVisitRepository.existsByTechnicianAndNextVisitDateAndNextVisitShift(
+                    technician,
+                    nextDate,
+                    shift
+            );
+
+            // 2. Verifica se existe um Evento Manual (ex: Folga, Reunião) nessa data/turno
+            long eventConflict = agendaEventRepository.countByUserAndEventDateAndShift(
+                    technician,
+                    nextDate,
+                    shift
+            );
+
+            // Se qualquer um dos dois for verdadeiro, a agenda está ocupada
+            return visitConflict || (eventConflict > 0);
+
+        } catch (IllegalArgumentException e) {
+            return false; // Turno inválido
+        }
     }
 }

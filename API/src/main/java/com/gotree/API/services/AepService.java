@@ -193,33 +193,38 @@ public class AepService {
 
     /**
      * Busca os detalhes de uma AEP específica.
-     *
-     * @param id          ID da AEP
-     * @param currentUser Usuário atual solicitando os detalhes
-     * @return DTO contendo os detalhes da AEP
-     * @throws RuntimeException  se a AEP não for encontrada
-     * @throws SecurityException se o usuário não estiver autorizado a visualizar a AEP
      */
     @Transactional(readOnly = true)
     public AepDetailDTO findAepDetails(Long id, User currentUser) {
         AepReport aep = aepReportRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("AEP com ID " + id + " não encontrada."));
 
-        // Verificação de segurança: Só o criador (ou um admin) pode ver os detalhes para editar
+        // Verificação de segurança
         if (!aep.getEvaluator().getId().equals(currentUser.getId())) {
-            // Você pode adicionar uma verificação de "ROLE_ADMIN" aqui
             throw new SecurityException("Usuário não autorizado a visualizar esta AEP.");
         }
 
         // Mapeamento manual da Entidade para o DTO de Detalhes
         AepDetailDTO dto = new AepDetailDTO();
         dto.setId(aep.getId());
-        dto.setCompanyId(aep.getCompany() != null ? aep.getCompany().getId() : null);
+        if (aep.getCompany() != null) {
+            dto.setCompanyId(aep.getCompany().getId());
+            dto.setCompanyName(aep.getCompany().getName());
+            dto.setCompanyCnpj(aep.getCompany().getCnpj());
+        }
         dto.setEvaluationDate(aep.getEvaluationDate());
         dto.setEvaluatedFunction(aep.getEvaluatedFunction());
-        dto.setSelectedRisks(aep.getSelectedRisks()); // <-- AQUI ESTÁ A LISTA DE RISCOS MARCADOS
-        dto.setPhysiotherapistId(aep.getPhysiotherapist() != null ? aep.getPhysiotherapist().getId() : null);
 
+        // --- CORREÇÃO DO LAZY INITIALIZATION ---
+        // Cria uma NOVA lista (ArrayList) para forçar o carregamento imediato dos dados
+        if (aep.getSelectedRisks() != null) {
+            dto.setSelectedRisks(new java.util.ArrayList<>(aep.getSelectedRisks()));
+        } else {
+            dto.setSelectedRisks(new java.util.ArrayList<>());
+        }
+        // ---------------------------------------
+
+        dto.setPhysiotherapistId(aep.getPhysiotherapist() != null ? aep.getPhysiotherapist().getId() : null);
         dto.setEvaluatorId(aep.getEvaluator().getId());
         dto.setEvaluatorName(aep.getEvaluator().getName());
 

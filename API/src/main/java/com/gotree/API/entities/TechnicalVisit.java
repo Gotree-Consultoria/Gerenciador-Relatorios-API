@@ -1,5 +1,6 @@
 package com.gotree.API.entities;
 
+import com.gotree.API.enums.Shift;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -40,6 +41,9 @@ public class TechnicalVisit {
     private String summary;
 
     private String pdfPath;
+
+    @Enumerated(EnumType.STRING)
+    private Shift nextVisitShift;
 
     @OneToMany(mappedBy = "technicalVisit", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<VisitFinding> findings = new ArrayList<>();

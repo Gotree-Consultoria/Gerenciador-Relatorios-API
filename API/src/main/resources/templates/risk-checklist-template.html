@@ -35,11 +35,15 @@
 
         .header .logo {
             width: 15%;
+            text-align: center; /* Centraliza horizontalmente o conteúdo da célula */
+            vertical-align: middle; /* Centraliza verticalmente */
         }
         .header .logo img {
-            max-width: 80px;
-            max-height: 80px;
+            height: 60px; /* Altura fixa para consistência */
+            width: auto;
             object-fit: contain;
+            display: inline-block; /* Necessário para responder ao text-align */
+            margin: 0 auto;
         }
 
         .header .title {
@@ -210,7 +214,8 @@
         <td class="logo">
             <img th:if="${generatingCompanyLogo != null}"
                  th:src="'data:image/png;base64,' + ${generatingCompanyLogo}"
-                 alt="Logo" />
+                 alt="Logo"
+                 style="height: 60px; width: auto;" />
         </td>
 
         <td class="title">
@@ -220,7 +225,8 @@
         <td class="logo">
             <img th:if="${generatingCompanyLogo != null}"
                  th:src="'data:image/png;base64,' + ${generatingCompanyLogo}"
-                 alt="Logo" />
+                 alt="Logo"
+                 style="height: 60px; width: auto;" />
         </td>
     </tr>
 </table>

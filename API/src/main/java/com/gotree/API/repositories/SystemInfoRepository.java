@@ -8,7 +8,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SystemInfoRepository extends JpaRepository<SystemInfo, Long> {
 
-    // Como só teremos um registro, podemos fazer um método para pegar o primeiro
+    // Como só teremos um registro, podemos fazer um metodo para pegar o primeiro
     @Query(value = "SELECT * FROM tb_system_info LIMIT 1", nativeQuery = true)
     SystemInfo findFirst();
 }

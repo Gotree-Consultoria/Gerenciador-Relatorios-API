@@ -2,6 +2,7 @@ package com.gotree.API.controllers;
 
 import com.gotree.API.config.security.CustomUserDetails;
 import com.gotree.API.dto.document.DocumentSummaryDTO;
+import com.gotree.API.dto.document.FileDownloadDTO;
 import com.gotree.API.entities.User;
 import com.gotree.API.services.DocumentAggregationService;
 import org.slf4j.Logger;
@@ -34,8 +35,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/documents")
 public class DocumentController {
-    
-    
+
+
 
     private final DocumentAggregationService documentAggregationService;
     private static final Logger logger = LoggerFactory.getLogger(DocumentController.class);
@@ -99,13 +100,13 @@ public class DocumentController {
      * Permite o download ou visualização de um documento PDF específico.
      * O documento é identificado pelo seu tipo (ex: visita, inspeção) e ID.
      * Verifica se o usuário tem permissão para acessar o documento solicitado.
-     *
+     * Agora utiliza FileDownloadDTO para garantir o nome correto do arquivo.
      * @param type Tipo do documento (ex: "visit", "inspection")
      * @param id ID do documento
      * @param authentication Objeto de autenticação do Spring Security
      * @return ResponseEntity contendo o arquivo PDF ou status de erro apropriado
      */
-    @GetMapping("/{type}/{id}/pdf") // Ex: /documents/visit/45/pdf
+    @GetMapping("/{type}/{id}/pdf")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<byte[]> downloadDocumentPdf(@PathVariable String type, @PathVariable Long id, Authentication authentication) {
 
@@ -113,15 +114,14 @@ public class DocumentController {
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
             User currentUser = userDetails.user();
 
-            // Agora passamos o tipo e o ID para o serviço
-            byte[] pdfBytes = documentAggregationService.loadPdfFileByTypeAndId(type, id, currentUser);
+            // 1. Chama o novo método que retorna o DTO (Nome + Bytes)
+            FileDownloadDTO fileDto = documentAggregationService.downloadDocument(type, id, currentUser);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_PDF);
-            String filename = type + "_" + id + ".pdf";
-            headers.setContentDispositionFormData("attachment", filename);
-
-            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+            // 2. Retorna com o cabeçalho Content-Disposition configurado com o nome correto
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileDto.getFilename() + "\"")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(fileDto.getData());
 
         } catch (IOException e) {
             logger.error("Falha ao ler o arquivo PDF do disco. Tipo: {}, ID: {}. Erro: {}", type, id, e.getMessage());
@@ -157,5 +157,23 @@ public class DocumentController {
     public ResponseEntity<List<DocumentSummaryDTO>> getLatestDocumentsForAdmin() {
         List<DocumentSummaryDTO> latestDocuments = documentAggregationService.findAllLatestDocumentsForAdmin();
         return ResponseEntity.ok(latestDocuments);
+    }
+
+    /**
+     * Endpoint ADMIN: Lista todos os documentos do sistema.
+     */
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<DocumentSummaryDTO>> getAllDocumentsAdmin(
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String clientName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            Pageable pageable
+    ) {
+        Page<DocumentSummaryDTO> documentsPage = documentAggregationService.findAllDocumentsGlobal(
+                type, clientName, startDate, endDate, pageable
+        );
+        return ResponseEntity.ok(documentsPage);
     }
 }

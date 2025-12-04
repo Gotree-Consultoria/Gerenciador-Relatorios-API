@@ -1,6 +1,7 @@
 package com.gotree.API.entities;
 
 import com.gotree.API.enums.AgendaEventType;
+import com.gotree.API.enums.Shift;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -41,6 +42,10 @@ public class AgendaEvent {
      */
     private LocalDate eventDate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Shift shift; // Turno Obrigatório
+
     /**
      * Usuário associado ao evento.
      * Relacionamento muitos-para-um com a entidade User.
@@ -49,12 +54,17 @@ public class AgendaEvent {
     @JoinColumn(name = "user_id")
     private User user;
 
-    /**
-     * ID da visita técnica original que gerou este evento.
-     * Campo único que permite rastrear a origem do evento.
-     */
-    @Column(name = "source_visit_id", unique = true, nullable = true)
-    private Long sourceVisitId;
+//    /**
+//     * ID da visita técnica original que gerou este evento.
+//     * Campo único que permite rastrear a origem do evento.
+//     */
+//    @Column(name = "source_visit_id", unique = true, nullable = true)
+//    private Long sourceVisitId;
+
+    // Substitui o antigo 'sourceVisitId' (Long)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "technical_visit_id", nullable = true)
+    private TechnicalVisit technicalVisit;
 
     /**
      * Data original da visita técnica.
@@ -70,4 +80,8 @@ public class AgendaEvent {
     @Enumerated(EnumType.STRING)
     @Column(name = "event_type")
     private AgendaEventType eventType;
+
+    // Serão usados quando o técnico marcar "REUNIAO" ou "OUTROS"
+    private String clientName;
+    private String manualObservation;
 }

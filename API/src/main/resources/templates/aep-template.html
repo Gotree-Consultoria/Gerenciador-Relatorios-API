@@ -6,55 +6,115 @@
     <style>
         @page {
             size: A4;
-            margin: 1.5cm; /* Margem um pouco menor para caber a tabela */
+            margin: 1.0cm; /* Margem ajustada */
         }
         body {
-            /* IMPORTANTE: Para esta fonte funcionar e os acentos aparecerem corretamente,
-              seu ReportService.java DEVE carregar a fonte, por exemplo:
-              renderer.getFontResolver().addFont("fonts/Montserrat-VariableFont_wght.ttf", BaseFont.IDENTITY_H, BaseFont.NOT_EMBEDDED);
-            */
-            font-family: 'Monteserrat', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             font-size: 10pt;
             color: #333;
         }
-        h1 {
-            font-size: 14pt;
-            text-align: center;
-            margin-bottom: 20px;
+
+        /* --- PADRÃO DE CABEÇALHO (Igual aos outros relatórios) --- */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            font-family: 'Montserrat', sans-serif;
         }
-        /* Blocos de informação com borda cinza */
-        .header-info, .general-info {
+        .header-table td {
             border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 20px;
+            padding: 5px;
+            vertical-align: middle;
+            text-align: center;
+            height: 60px;
         }
-        .header-info p, .general-info p {
-            margin: 4px 0;
+        .header-table .logo-cell {
+            width: 15%;
+            background-color: #fff;
+            text-align: center;     /* Centraliza Horizontalmente */
+            vertical-align: middle; /* Centraliza Verticalmente */
         }
-        /* Título de seção (ex: CHECK LIST, RISCOS IDENTIFICADOS) */
+        .header-table .logo-cell img {
+            height: 50px;           /* Altura fixa segura */
+            width: auto;            /* Largura proporcional */
+            object-fit: contain;
+            display: inline-block;  /* Importante: Faz a imagem obedecer ao text-align do pai */
+            margin: 0;              /* Remove margens que podem atrapalhar */
+            padding: 0;
+            border: none;
+        }
+        .header-table .title-cell {
+            width: 70%;
+            font-size: 14pt;
+            font-weight: 700;
+            background-color: #f2f2f2;
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        /* --- PADRÃO DE DADOS (DATA GRID) --- */
+        .section-title {
+            background-color: #e0e0e0;
+            padding: 4px 8px;
+            margin-top: 10px;
+            margin-bottom: 0;
+            font-weight: 700;
+            font-size: 9pt;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            text-transform: uppercase;
+        }
+
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+            font-size: 9pt;
+        }
+        .data-grid td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            vertical-align: middle;
+        }
+        .data-grid .label {
+            width: 20%; /* Ajuste conforme necessidade */
+            font-weight: 700;
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        .data-grid .value {
+            width: 30%;
+        }
+
+        /* --- ESTILOS ESPECÍFICOS DA AEP (TABELA DE RISCOS) --- */
         h2 {
             font-size: 10pt;
             background-color: #f2f2f2;
             padding: 8px;
             margin-top: 20px;
             margin-bottom: 10px;
+            border: 1px solid #ccc;
+            text-transform: uppercase;
+            text-align: center;
+            font-weight: bold;
         }
 
-        /* Estilo para a tabela de riscos, imitando a lista do checklist */
         .risk-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 9pt; /* Um pouco menor para caber */
+            font-size: 9pt;
         }
         .risk-table th {
             background-color: #f2f2f2;
             padding: 8px;
-            border: 1px solid #ccc;
+            border: 1px solid #999; /* Borda um pouco mais escura para contraste */
             text-align: center;
+            font-weight: bold;
         }
         .risk-table td {
             padding: 5px;
-            border-bottom: 1px solid #eee; /* Borda fina como .section-item */
+            border: 1px solid #999;
+            vertical-align: middle;
         }
         .risk-table td.check-col {
             width: 5%;
@@ -67,17 +127,18 @@
         }
         .risk-table td.factor-col {
             width: 70%;
+            text-align: left;
         }
 
-        /* Bloco de assinatura (copiado do checklist) */
+        /* ASSINATURAS */
         .signatures {
             margin-top: 50px;
             page-break-inside: avoid;
         }
         .signature-block {
             width: 300px;
-            margin: 0 auto; /* Centraliza o bloco de assinatura */
-            border-top: 1px solid #000; /* Linha de assinatura preta */
+            margin: 0 auto;
+            border-top: 1px solid #000;
             padding-top: 8px;
             text-align: center;
         }
@@ -85,29 +146,63 @@
 </head>
 <body>
 
-<h1>AVALIAÇÃO ERGONÔMICA PRELIMINAR (AEP)</h1>
+<table class="header-table">
+    <tr>
+        <td class="logo-cell">
+            <img th:if="${generatingCompanyLogo != null}"
+                 th:src="'data:image/png;base64,' + ${generatingCompanyLogo}" alt="Logo" />
+        </td>
+        <td class="title-cell">
+            AVALIAÇÃO ERGONÔMICA PRELIMINAR (AEP)
+        </td>
+        <td class="logo-cell">
+            <img th:if="${generatingCompanyLogo != null}"
+                 th:src="'data:image/png;base64,' + ${generatingCompanyLogo}" alt="Logo" />
+        </td>
+    </tr>
+</table>
 
-<div class="header-info">
-    <p><strong>Empresa:</strong> <span th:text="${generatingCompanyName}"></span></p>
-    <p><strong>CNPJ:</strong> <span th:text="${generatingCompanyCnpj}"></span></p>
-</div>
+<div class="section-title">DADOS DO EMISSOR</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Empresa</td>
+        <td class="value" th:text="${generatingCompanyName}"></td>
+        <td class="label">CNPJ</td>
+        <td class="value" th:text="${generatingCompanyCnpj}"></td>
+    </tr>
+</table>
 
-<div class="general-info">
-    <p><strong>Empresa Cliente:</strong> <span th:text="${aep.company?.name}"></span></p>
-    <p><strong>CNPJ:</strong> <span th:text="${aep.company?.cnpj}"></span></p>
-</div>
+<div class="section-title">DADOS DO CLIENTE E AVALIAÇÃO</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Empresa Cliente</td>
+        <td class="value" th:text="${aep.company?.name}"></td>
+        <td class="label">CNPJ</td>
+        <td class="value" th:text="${aep.company?.cnpj}"></td>
+    </tr>
+    <tr>
+        <td class="label">Data da Avaliação</td>
+        <td class="value" th:text="${#temporals.format(aep.evaluationDate, 'dd/MM/yyyy')}"></td>
+        <td class="label">Função Avaliada</td>
+        <td class="value" th:text="${aep.evaluatedFunction}"></td>
+    </tr>
+</table>
 
-<div class="general-info">
-    <p><strong>Avaliador:</strong> <span th:text="${aep.evaluator?.name}"></span></p>
-    <p><strong>Sigla do Conselho:</strong> <span th:text="${aep.evaluator?.siglaConselhoClasse}"></span></p>
-    <p><strong>Registro no Conselho:</strong> <span th:text="${aep.evaluator?.conselhoClasse}"></span></p>
-    <p><strong>Especialidade:</strong> <span th:text="${aep.evaluator?.especialidade}"></span></p>
-</div>
-
-<div class="general-info">
-    <p><strong>Data da Avaliação:</strong> <span th:text="${#temporals.format(aep.evaluationDate, 'dd/MM/yyyy')}"></span></p>
-    <p><strong>Função Avaliada:</strong> <span th:text="${aep.evaluatedFunction}"></span></p>
-</div>
+<div class="section-title">RESPONSÁVEL TÉCNICO</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Nome</td>
+        <td class="value" th:text="${aep.evaluator?.name}"></td>
+        <td class="label">Registro Conselho</td>
+        <td class="value" th:text="${aep.evaluator?.conselhoClasse}"></td>
+    </tr>
+    <tr>
+        <td class="label">Especialidade</td>
+        <td class="value" th:text="${aep.evaluator?.especialidade}"></td>
+        <td class="label">Sigla Conselho</td>
+        <td class="value" th:text="${aep.evaluator?.siglaConselhoClasse}"></td>
+    </tr>
+</table>
 
 <h2>RISCOS IDENTIFICADOS POR FUNÇÃO</h2>
 
@@ -120,7 +215,7 @@
     </thead>
     <tbody>
     <tr th:each="riskDescription : ${allRisks}">
-        <td class="check-col" th:text="${selectedRisks.contains(riskDescription) ? 'X' : ''}"></td>
+        <td class="check-col" th:text="${selectedRisks != null and selectedRisks.contains(riskDescription) ? 'X' : ''}"></td>
         <td class="risk-col">ERGONÔMICO</td>
         <td class="factor-col" th:text="${riskDescription}"></td>
     </tr>
@@ -129,17 +224,12 @@
 
 <div class="signatures">
     <div class="signature-block">
-
         <p style="margin: 0 0 4px 0; padding: 0; font-weight: bold;" th:text="${aep.physiotherapist?.name}"></p>
-
         <p style="margin: 0; padding: 0; font-size: 9pt;">
             <span style="font-weight: bold;">Crefito:</span>
-
             <span th:if="${aep.physiotherapist != null}" th:text="' ' + ${aep.physiotherapist.crefito}"></span>
-
             <span th:if="${aep.physiotherapist == null}"> _________________</span>
         </p>
-
     </div>
 </div>
 

@@ -2,6 +2,8 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
+    <title>Relatório de Visita Técnica</title>
+
     <style>
         @page { size: A4 landscape; margin: 0.5cm; }
         body { font-family: 'Montserrat', sans-serif; font-size: 10pt; color: #333; }
@@ -13,7 +15,12 @@
 
         /* Tabela de achados */
         .findings-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 8pt; }
-        .findings-table th, .findings-table td { border: 1px solid #999; padding: 5px; text-align: left; vertical-align: top; }
+        .findings-table th, .findings-table td {
+            border: 1px solid #999;
+            padding: 5px;
+            text-align: center; /* MUDEI DE justify PARA center */
+            vertical-align: middle; /* Centraliza verticalmente */
+        }
         .findings-table th { background-color: #f2f2f2; }
         .findings-table tr { page-break-inside: avoid; }
         .findings-table td { word-wrap: break-word; overflow-wrap: break-word; hyphens: auto; }
@@ -25,6 +32,80 @@
             max-width: 6.8cm !important; max-height: 5cm !important;
             width: auto !important; height: auto !important; object-fit: contain;
         }
+
+        /* --- ESTILO DO CABEÇALHO E GRADES DE DADOS --- */
+
+        /* 1. Tabela do Topo (Logo | Título | Logo) */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+            font-family: 'Montserrat', sans-serif;
+        }
+        .header-table td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            vertical-align: middle;
+            text-align: center;
+            height: 60px;
+        }
+        .header-table .logo-cell {
+            width: 15%;
+            background-color: #fff;
+            text-align: center; /* Garante alinhamento horizontal */
+            vertical-align: middle; /* Garante alinhamento vertical */
+        }
+        .header-table .logo-cell img {
+            height: 50px; /* Altura fixa para não estourar */
+            width: auto;
+            object-fit: contain;
+            display: inline-block; /* Importante para o text-align funcionar */
+            margin: 0 auto;
+        }
+        .header-table .title-cell {
+            width: 70%;
+            font-size: 14pt;
+            font-weight: 700;
+            background-color: #f2f2f2;
+            text-transform: uppercase;
+            color: #000;
+        }
+
+        /* 2. Títulos das Seções (Barra Cinza) */
+        .section-title {
+            background-color: #e0e0e0;
+            padding: 4px 8px;
+            margin-top: 10px;
+            margin-bottom: 0;
+            font-weight: 700;
+            font-size: 9pt;
+            border: 1px solid #ccc;
+            border-bottom: none;
+            text-transform: uppercase;
+        }
+
+        /* 3. Grade de Dados (Tabela de Informações) */
+        .data-grid {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+            font-size: 9pt;
+        }
+        .data-grid td {
+            border: 1px solid #ccc;
+            padding: 5px;
+            vertical-align: middle;
+        }
+        .data-grid .label {
+            width: 15%;
+            font-weight: 700;
+            background-color: #f2f2f2;
+            color: #333;
+        }
+        .data-grid .value {
+            width: 35%;
+        }
+        /* Fim */
 
         /* Assinaturas */
         .signatures {
@@ -138,49 +219,95 @@
 </head>
 <body>
 
-<h1>Relatório de Visita Técnica de Segurança do Trabalho</h1>
+<table class="header-table">
+    <tr>
+        <td class="logo-cell">
+            <img th:if="${generatingCompanyLogo != null}"
+                 th:src="'data:image/png;base64,' + ${generatingCompanyLogo}" alt="Logo" />
+        </td>
+        <td class="title-cell">
+            RELATÓRIO DE VISITA TÉCNICA DE SEGURANÇA DO TRABALHO
+        </td>
+        <td class="logo-cell">
+            <img th:if="${generatingCompanyLogo != null}"
+                 th:src="'data:image/png;base64,' + ${generatingCompanyLogo}" alt="Logo" />
+        </td>
+    </tr>
+</table>
 
-<div class="info-block">
-    <p><strong>Empresa:</strong> <span th:text="${generatingCompanyName}"></span></p>
-    <p><strong>CNPJ:</strong> <span th:text="${generatingCompanyCnpj}"></span></p>
-</div>
+<div class="section-title">DADOS DO EMISSOR</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Empresa</td>
+        <td class="value" th:text="${generatingCompanyName}"></td>
+        <td class="label">CNPJ</td>
+        <td class="value" th:text="${generatingCompanyCnpj}"></td>
+    </tr>
+</table>
 
-<div class="info-block">
-    <p><strong>Empresa Cliente:</strong> <span th:text="${visit.clientCompany?.name}"></span></p>
-    <p><strong>CNPJ:</strong> <span th:text="${visit.clientCompany?.cnpj}"></span></p>
-    <p th:if="${visit.unit != null}"><strong>Unidade:</strong> <span th:text="${visit.unit.name}"></span></p>
-    <p th:if="${visit.sector != null}"><strong>Setor:</strong> <span th:text="${visit.sector.name}"></span></p>
-    <p><strong>Local da Visita:</strong> <span th:text="${visit.location}"></span></p>
-    <p><strong>Data da Visita:</strong> <span th:text="${#temporals.format(visit.visitDate, 'dd/MM/yyyy')}"></span></p>
-    <p><strong>Hora Inicial:</strong> <span th:text="${#temporals.format(visit.startTime, 'HH:mm')}"></span></p>
-    <p th:if="${visit.endTime != null}">
-        <strong>Hora Final:</strong> <span th:text="${#temporals.format(visit.endTime, 'HH:mm')}"></span>
-    </p>
-    <p th:if="${visit.endTime != null and visit.startTime != null}">
-        <strong>Tempo Total Estimado:</strong>
-        <span th:text="${T(java.time.Duration).between(visit.startTime, visit.endTime).toMinutes() + ' minutos'}"></span>
-    </p>
-</div>
+<div class="section-title">DADOS DO CLIENTE E LOCAL DA VISITA</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Empresa Cliente</td>
+        <td class="value" th:text="${visit.clientCompany?.name}"></td>
+        <td class="label">CNPJ</td>
+        <td class="value" th:text="${visit.clientCompany?.cnpj}"></td>
+    </tr>
+    <tr>
+        <td class="label">Unidade</td>
+        <td class="value" th:text="${visit.unit != null ? visit.unit.name : '-'}"></td>
+        <td class="label">Setor</td>
+        <td class="value" th:text="${visit.sector != null ? visit.sector.name : '-'}"></td>
+    </tr>
+    <tr>
+        <td class="label">Local da Visita</td>
+        <td class="value" colspan="3" th:text="${visit.location}"></td>
+    </tr>
+</table>
 
-<div class="info-block">
-    <p><strong>Responsável:</strong> <span th:text="${visit.technician?.name}"></span></p>
-    <p><strong>Sigla Conselho:</strong> <span th:text="${visit.technician?.siglaConselhoClasse}"></span></p>
-    <p><strong>Registro Conselho:</strong> <span th:text="${visit.technician?.conselhoClasse}"></span></p>
-    <p><strong>Especialidade:</strong> <span th:text="${visit.technician?.especialidade}"></span></p>
-</div>
+<div class="section-title">DADOS TEMPORAIS DA VISITA</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Data da Visita</td>
+        <td class="value" th:text="${#temporals.format(visit.visitDate, 'dd/MM/yyyy')}"></td>
+        <td class="label">Tempo Total</td>
+        <td class="value">
+            <span th:if="${visit.endTime != null and visit.startTime != null}"
+                  th:text="${T(java.time.Duration).between(visit.startTime, visit.endTime).toMinutes() + ' minutos'}">
+            </span>
+            <span th:if="${visit.endTime == null or visit.startTime == null}">-</span>
+        </td>
+    </tr>
+    <tr>
+        <td class="label">Hora Inicial</td>
+        <td class="value" th:text="${#temporals.format(visit.startTime, 'HH:mm')}"></td>
+        <td class="label">Hora Final</td>
+        <td class="value" th:text="${visit.endTime != null ? #temporals.format(visit.endTime, 'HH:mm') : '-'}"></td>
+    </tr>
+</table>
+
+<div class="section-title">RESPONSÁVEL TÉCNICO</div>
+<table class="data-grid">
+    <tr>
+        <td class="label">Nome</td>
+        <td class="value" th:text="${visit.technician?.name}"></td>
+        <td class="label">Registro Conselho</td>
+        <td class="value" th:text="${visit.technician?.conselhoClasse}"></td>
+    </tr>
+    <tr>
+        <td class="label">Especialidade</td>
+        <td class="value" th:text="${visit.technician?.especialidade}"></td>
+        <td class="label">Sigla Conselho</td>
+        <td class="value" th:text="${visit.technician?.siglaConselhoClasse}"></td>
+    </tr>
+</table>
 
 <div>
     <h2>Referências Técnicas Utilizadas</h2>
-    <p style="white-space: pre-wrap; text-align: justify; line-height: 0.8;">
-        INSPEÇÃO Meio Ambiente<br/>
-        INSPEÇÃO NR 01 - Documentações<br/>
-        INSPEÇÃO NR 06 - EPI (Equipamento de Proteção Individual)<br/>
-        INSPEÇÃO NR 06 - EPC (Equipamento de Proteção Coletiva)<br/>
-        INSPEÇÃO NR 07 - Documentações<br/>
-        INSPEÇÃO NR 11 - Transporte, movimentação, manuseio e armazenagem de materiais<br/>
-        INSPEÇÃO NR 12 - Máquinas e equipamentos<br/>
-        INSPEÇÃO NR 23 - Proteção e Combate Contra Incêndios<br/>
-        INSPEÇÃO NR 35 - Trabalho em altura
+    <p style="white-space: pre-wrap; text-align: justify; line-height: 1.2; font-size: 9pt; margin: 5px;">
+        INSPEÇÃO Meio Ambiente | INSPEÇÃO NR 01 - Documentações | INSPEÇÃO NR 06 - EPI | INSPEÇÃO NR 06 - EPC
+        INSPEÇÃO NR 07 - Documentações | INSPEÇÃO NR 11 - Transporte e Movimentação | INSPEÇÃO NR 12 - Máquinas
+        INSPEÇÃO NR 23 - Incêndios | INSPEÇÃO NR 35 - Trabalho em altura
     </p>
 </div>
 
@@ -229,7 +356,8 @@
 <div th:if="${visit.nextVisitDate != null}" style="page-break-inside: avoid; margin-top: 30px;">
     <h2>Agendamento da Próxima Visita</h2>
     <div class="info-block" style="border-style: dashed; background-color: #fcfcfc;">
-        <p><strong>Data Programada:</strong> <span th:text="${#temporals.format(visit.nextVisitDate, 'dd/MM/yyyy')}"></span></p>
+        <p><strong>Data da Próxima Visita:</strong> <span th:text="${#temporals.format(visit.nextVisitDate, 'dd/MM/yyyy')}"></span></p>
+        <p><strong>Turno da Próxima Visita:</strong> <span th:text="${visit.nextVisitShift}"></span></p>
     </div>
 </div>
 
