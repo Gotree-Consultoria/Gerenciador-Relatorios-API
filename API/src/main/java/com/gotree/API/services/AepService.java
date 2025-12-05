@@ -6,6 +6,7 @@ import com.gotree.API.entities.*;
 import com.gotree.API.repositories.AepReportRepository;
 import com.gotree.API.repositories.CompanyRepository;
 import com.gotree.API.repositories.PhysiotherapistRepository;
+import com.gotree.API.repositories.SystemInfoRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,8 +27,8 @@ import java.util.UUID;
  */
 @Service
 public class AepService {
-    
-    
+
+
 
     // A LISTA MESTRE DE TODOS OS RISCOS
     private static final List<String> MASTER_RISK_LIST = Arrays.asList(
@@ -72,21 +73,19 @@ public class AepService {
     private final CompanyRepository companyRepository;
     private final ReportService reportService;
     private final PhysiotherapistRepository physioRepository;
+    private final SystemInfoRepository systemInfoRepository;
 
     @Value("${file.storage.path}")
     private String fileStoragePath;
 
-    @Value("${app.generating-company.name}")
-    private String generatingCompanyName;
-    @Value("${app.generating-company.cnpj}")
-    private String generatingCompanyCnpj;
-
     public AepService(AepReportRepository aepReportRepository, CompanyRepository companyRepository,
-                      ReportService reportService, PhysiotherapistRepository physioRepository) {
+                      ReportService reportService, PhysiotherapistRepository physioRepository,
+                      SystemInfoRepository systemInfoRepository) {
         this.aepReportRepository = aepReportRepository;
         this.companyRepository = companyRepository;
         this.reportService = reportService;
         this.physioRepository = physioRepository;
+        this.systemInfoRepository = systemInfoRepository;
     }
 
 
@@ -172,8 +171,18 @@ public class AepService {
         templateData.put("aep", aep);
         templateData.put("company", aep.getCompany());
         templateData.put("evaluator", aep.getEvaluator());
-        templateData.put("generatingCompanyName", generatingCompanyName);
-        templateData.put("generatingCompanyCnpj", generatingCompanyCnpj); // Passa o CNPJ da Go-Tree
+
+        // Busca dados da empresa do banco de dados
+        SystemInfo sysInfo = systemInfoRepository.findFirst();
+        if (sysInfo != null) {
+            templateData.put("generatingCompanyName", sysInfo.getCompanyName());
+            templateData.put("generatingCompanyCnpj", sysInfo.getCnpj());
+        } else {
+            // Fallback para valores padrão se não encontrar no banco
+            templateData.put("generatingCompanyName", "Go-Tree Consultoria LTDA");
+            templateData.put("generatingCompanyCnpj", "47.885.556/0001-76");
+        }
+
         templateData.put("allRisks", MASTER_RISK_LIST);
         templateData.put("selectedRisks", aep.getSelectedRisks());
 
