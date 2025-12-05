@@ -7,7 +7,6 @@ import com.gotree.API.repositories.AepReportRepository;
 import com.gotree.API.repositories.CompanyRepository;
 import com.gotree.API.repositories.PhysiotherapistRepository;
 import com.gotree.API.repositories.SystemInfoRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,9 +73,7 @@ public class AepService {
     private final ReportService reportService;
     private final PhysiotherapistRepository physioRepository;
     private final SystemInfoRepository systemInfoRepository;
-
-    @Value("${file.storage.path}")
-    private String fileStoragePath;
+    private final String fileStoragePath = "/app-data/reports/";
 
     public AepService(AepReportRepository aepReportRepository, CompanyRepository companyRepository,
                       ReportService reportService, PhysiotherapistRepository physioRepository,
