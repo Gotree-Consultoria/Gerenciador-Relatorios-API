@@ -30,4 +30,5 @@ public class CreateTechnicalVisitRequestDTO {
 
     // Agendamento da próxima visita
     private LocalDate nextVisitDate;
+    private String nextVisitShift;
 }

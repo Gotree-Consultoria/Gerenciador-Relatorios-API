@@ -17,4 +17,6 @@ public class DocumentSummaryDTO {
     private boolean emailSent;   // Controla a cor (Verde/Vermelho)
     private String clientEmail;  // Para mostrar no Modal ("Enviado para...")
     private LocalDateTime sentAt; // Opcional: Data do envio para mostrar no tooltip
+
+    private String technicianName;
 }

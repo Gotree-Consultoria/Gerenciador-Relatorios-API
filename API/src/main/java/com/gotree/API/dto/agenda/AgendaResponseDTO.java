@@ -9,9 +9,11 @@ public class AgendaResponseDTO {
     private LocalDate date; // Esta será a "Nova Data" (eventDate)
     private String type; // "EVENTO" ou "VISITA"
     private String description; // "Essa visita foi reagendado..."
+    private String shift; // "MANHA" ou "TARDE"
     private Long referenceId; // O ID do AgendaEvent ou do TechnicalVisit
     private String unitName;
     private String sectorName;
+    private String clientName;
 
     private LocalDate originalVisitDate; // A "Data original"
     private Long sourceVisitId; // O ID do relatório de visita original

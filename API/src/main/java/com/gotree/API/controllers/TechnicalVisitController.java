@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -86,5 +88,39 @@ public class TechnicalVisitController {
         List<TechnicalVisitResponseDTO> responseDtos = technicalVisitMapper.toDtoList(visits);
 
         return ResponseEntity.ok(responseDtos);
+    }
+
+
+    /**
+     * Verifica a disponibilidade do técnico para uma próxima visita em uma data e turno específicos.
+     * Este endpoint é usado para validar se já existe alguma visita técnica agendada
+     * para a data e turno informados antes de permitir um novo agendamento.
+     *
+     * @param auth  Dados do usuário autenticado
+     * @param date  Data proposta para a próxima visita
+     * @param shift Turno proposto para a próxima visita (MORNING, AFTERNOON)
+     * @return ResponseEntity com status 200 (OK) se disponível ou 409 (CONFLICT) se ocupado
+     */
+    @GetMapping("/check-availability")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> checkNextVisitAvailability(
+            Authentication auth,
+            @RequestParam LocalDate date,  // Essa será a nextVisitDate
+            @RequestParam String shift     // Esse será o nextVisitShift
+    ) {
+        User technician = ((CustomUserDetails) auth.getPrincipal()).user();
+
+        // Chama o metodo novo que olha o NEXT_VISIT_DATE
+        boolean isBusy = technicalVisitService.checkNextVisitAvailability(date, shift, technician);
+
+        if (isBusy) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of(
+                            "blocked", true,
+                            "message", "A agenda já está ocupada nesta data e turno."
+                    ));
+        }
+
+        return ResponseEntity.ok(Map.of("blocked", false));
     }
 }

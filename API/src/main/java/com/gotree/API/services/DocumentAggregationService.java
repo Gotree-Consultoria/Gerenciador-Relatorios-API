@@ -1,11 +1,13 @@
 package com.gotree.API.services;
 
 import com.gotree.API.dto.document.DocumentSummaryDTO;
+import com.gotree.API.dto.document.FileDownloadDTO;
 import com.gotree.API.entities.*;
 import com.gotree.API.repositories.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,15 +18,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-/**
- * Serviço responsável por agregar e gerenciar diferentes tipos de documentos no sistema.
- */
 @Service
 public class DocumentAggregationService {
 
@@ -51,45 +51,11 @@ public class DocumentAggregationService {
     }
 
     // ===================================================================================
-    // MÉTODOS DE BUSCA (Refatorados para evitar duplicação)
+    // 1. MÉTODOS PÚBLICOS (ENTRADA)
     // ===================================================================================
 
     /**
-     * Método PRIVADO centralizador que busca, mapeia e ordena TODOS os documentos do usuário.
-     * Evita repetir a lógica de consulta nos métodos públicos.
-     */
-    private List<DocumentSummaryDTO> fetchAllSortedDocuments(User technician) {
-        // 1. Relatórios de Visita Técnica
-        List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAllWithCompanyByTechnician(technician)
-                .stream()
-                .map(this::mapVisitToSummaryDto)
-                .toList();
-
-        // 2. Relatórios AEP
-        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAllByEvaluator(technician)
-                .stream()
-                .map(this::mapAepToSummaryDto)
-                .toList();
-
-        // 3. Checklist de Riscos
-        List<DocumentSummaryDTO> riskReports = riskReportRepository.findByTechnicianOrderByInspectionDateDesc(technician)
-                .stream()
-                .map(this::mapRiskToSummaryDto)
-                .toList();
-
-        // 4. Junta tudo em uma lista só
-        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports, riskReports)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
-
-        // 5. Ordena por data (Decrescente - mais recente primeiro)
-        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
-
-        return allDocuments;
-    }
-
-    /**
-     * Recupera documentos COM filtros e paginação (Usado na tela de listagem 'Meus Documentos').
+     * TÉCNICO: Recupera documentos COM filtros e paginação.
      */
     @Transactional(readOnly = true)
     public Page<DocumentSummaryDTO> findAllDocumentsForUser(
@@ -98,13 +64,104 @@ public class DocumentAggregationService {
             LocalDate startDate, LocalDate endDate,
             Pageable pageable
     ) {
-        // 1. Chama o método auxiliar (REMOVIDA A DUPLICAÇÃO)
-        List<DocumentSummaryDTO> allDocs = fetchAllSortedDocuments(technician);
+        // 1. Busca dados específicos do técnico
+        List<DocumentSummaryDTO> rawDocs = fetchRawDocumentsByTechnician(technician);
 
-        // Transforma em Stream para aplicar filtros
-        Stream<DocumentSummaryDTO> stream = allDocs.stream();
+        // 2. Aplica a lógica comum de filtro/paginação
+        return processDocumentList(rawDocs, typeFilter, clientFilter, startDate, endDate, pageable);
+    }
 
-        // 2. Filtro por TIPO
+    /**
+     * ADMIN: Recupera TODOS os documentos do sistema, com filtros e paginação.
+     */
+    @Transactional(readOnly = true)
+    public Page<DocumentSummaryDTO> findAllDocumentsGlobal(
+            String typeFilter, String clientFilter,
+            LocalDate startDate, LocalDate endDate,
+            Pageable pageable
+    ) {
+        // 1. Busca dados globais
+        List<DocumentSummaryDTO> rawDocs = fetchRawDocumentsGlobal();
+
+        // 2. Aplica a MESMA lógica comum
+        return processDocumentList(rawDocs, typeFilter, clientFilter, startDate, endDate, pageable);
+    }
+
+    /**
+     * DASHBOARD: Retorna a LISTA COMPLETA ordenada (sem paginação).
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryDTO> findAllDocumentsListForUser(User technician) {
+        List<DocumentSummaryDTO> docs = fetchRawDocumentsByTechnician(technician);
+        // Apenas ordena
+        docs.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+        return docs;
+    }
+
+    /**
+     * WIDGET: Recupera os 5 mais recentes.
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryDTO> findLatestDocumentsForUser(User technician) {
+        List<DocumentSummaryDTO> docs = fetchRawDocumentsByTechnician(technician);
+        docs.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+        return docs.stream().limit(5).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryDTO> findAllLatestDocumentsForAdmin() {
+        List<DocumentSummaryDTO> docs = fetchRawDocumentsGlobal();
+        docs.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
+        return docs.stream().limit(5).collect(Collectors.toList());
+    }
+
+    // ===================================================================================
+    // 2. FETCHERS (Busca de Dados Brutos)
+    // ===================================================================================
+
+    private List<DocumentSummaryDTO> fetchRawDocumentsByTechnician(User technician) {
+        List<DocumentSummaryDTO> visits = technicalVisitRepository.findAllWithCompanyByTechnician(technician)
+                .stream().map(this::mapVisitToSummaryDto).toList();
+
+        List<DocumentSummaryDTO> aeps = aepReportRepository.findAllByEvaluator(technician)
+                .stream().map(this::mapAepToSummaryDto).toList();
+
+        List<DocumentSummaryDTO> risks = riskReportRepository.findByTechnicianOrderByInspectionDateDesc(technician)
+                .stream().map(this::mapRiskToSummaryDto).toList();
+
+        return Stream.of(visits, aeps, risks)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
+    private List<DocumentSummaryDTO> fetchRawDocumentsGlobal() {
+        List<DocumentSummaryDTO> visits = technicalVisitRepository.findAll()
+                .stream().map(this::mapVisitToSummaryDto).toList();
+
+        List<DocumentSummaryDTO> aeps = aepReportRepository.findAll()
+                .stream().map(this::mapAepToSummaryDto).toList();
+
+        List<DocumentSummaryDTO> risks = riskReportRepository.findAll()
+                .stream().map(this::mapRiskToSummaryDto).toList();
+
+        return Stream.of(visits, aeps, risks)
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
+    // ===================================================================================
+    // 3. PROCESSOR (Lógica Centralizada de Filtro e Paginação)
+    // ===================================================================================
+
+    private Page<DocumentSummaryDTO> processDocumentList(
+            List<DocumentSummaryDTO> allDocuments,
+            String typeFilter, String clientFilter,
+            LocalDate startDate, LocalDate endDate,
+            Pageable pageable
+    ) {
+        Stream<DocumentSummaryDTO> stream = allDocuments.stream();
+
+        // 1. Filtro por TIPO
         if (typeFilter != null && !typeFilter.isBlank()) {
             final String typeInput = typeFilter.trim();
             stream = stream.filter(doc -> {
@@ -115,7 +172,7 @@ public class DocumentAggregationService {
             });
         }
 
-        // 3. Filtro por NOME DO CLIENTE
+        // 2. Filtro por NOME DO CLIENTE
         if (clientFilter != null && !clientFilter.isBlank()) {
             String filter = clientFilter.toLowerCase().trim();
             stream = stream.filter(doc ->
@@ -124,7 +181,7 @@ public class DocumentAggregationService {
             );
         }
 
-        // 4. Filtro por DATA
+        // 3. Filtro por DATA
         if (startDate != null) {
             stream = stream.filter(doc -> doc.getCreationDate() != null && !doc.getCreationDate().isBefore(startDate));
         }
@@ -132,10 +189,11 @@ public class DocumentAggregationService {
             stream = stream.filter(doc -> doc.getCreationDate() != null && !doc.getCreationDate().isAfter(endDate));
         }
 
-        // 5. Coleta a lista filtrada
+        // 4. Coleta e Ordena
         List<DocumentSummaryDTO> filteredList = stream.collect(Collectors.toList());
+        filteredList.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
 
-        // 6. Paginação Manual (Em memória)
+        // 5. Paginação Manual
         long totalElements = filteredList.size();
         int pageSize = pageable.getPageSize();
         int currentPage = pageable.getPageNumber();
@@ -153,52 +211,8 @@ public class DocumentAggregationService {
         return new PageImpl<>(paginatedList, pageable, totalElements);
     }
 
-    /**
-     * Retorna a LISTA COMPLETA de documentos para um usuário (sem paginação).
-     * Usado pelo Dashboard para calcular estatísticas.
-     */
-    @Transactional(readOnly = true)
-    public List<DocumentSummaryDTO> findAllDocumentsListForUser(User technician) {
-        // Reutiliza o método auxiliar (sem filtros)
-        return fetchAllSortedDocuments(technician);
-    }
-
-    /**
-     * Recupera os 5 documentos mais recentes associados a um técnico (Widget do Dashboard).
-     */
-    @Transactional(readOnly = true)
-    public List<DocumentSummaryDTO> findLatestDocumentsForUser(User technician) {
-        // Reutiliza o método auxiliar e limita a 5
-        return fetchAllSortedDocuments(technician).stream()
-                .limit(5)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Recupera os 5 documentos mais recentes do sistema (Visão Admin).
-     * OBS: Este método busca de TODOS os usuários, por isso mantém a lógica própria.
-     */
-    @Transactional(readOnly = true)
-    public List<DocumentSummaryDTO> findAllLatestDocumentsForAdmin() {
-        List<DocumentSummaryDTO> technicalVisits = technicalVisitRepository.findAll()
-                .stream().map(this::mapVisitToSummaryDto).toList();
-
-        List<DocumentSummaryDTO> aepReports = aepReportRepository.findAll()
-                .stream().map(this::mapAepToSummaryDto).toList();
-
-        List<DocumentSummaryDTO> riskReports = riskReportRepository.findAll()
-                .stream().map(this::mapRiskToSummaryDto).toList();
-
-        List<DocumentSummaryDTO> allDocuments = Stream.of(technicalVisits, aepReports, riskReports)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
-
-        allDocuments.sort(Comparator.comparing(DocumentSummaryDTO::getCreationDate, Comparator.nullsLast(Comparator.reverseOrder())));
-        return allDocuments.stream().limit(5).collect(Collectors.toList());
-    }
-
     // ===================================================================================
-    // MÉTODOS DE ARQUIVO (PDF) E DELEÇÃO
+    // 4. MÉTODOS DE ARQUIVO E DELEÇÃO (Mantidos iguais)
     // ===================================================================================
 
     public byte[] loadPdfFileByTypeAndId(String type, Long id, User currentUser) throws IOException {
@@ -207,59 +221,114 @@ public class DocumentAggregationService {
 
         if ("visit".equalsIgnoreCase(type)) {
             TechnicalVisit visit = technicalVisitRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Relatório de Visita com ID " + id + " não encontrado."));
+                    .orElseThrow(() -> new RuntimeException("Relatório de Visita não encontrado."));
             fileName = visit.getPdfPath();
-
         } else if ("aep".equalsIgnoreCase(type)) {
             pdfBytes = aepService.loadOrGenerateAepPdf(id, currentUser);
-
         } else if ("risk".equalsIgnoreCase(type)) {
             OccupationalRiskReport report = riskReportRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Relatório não encontrado."));
             fileName = report.getPdfPath();
-
         } else {
             throw new IllegalArgumentException("Tipo de documento inválido: " + type);
         }
 
-        if (pdfBytes != null) {
-            return pdfBytes;
-        }
+        if (pdfBytes != null) return pdfBytes;
+        if (fileName == null || fileName.isBlank()) throw new RuntimeException("Este documento não possui um PDF associado.");
 
-        if (fileName == null || fileName.isBlank()) {
-            throw new RuntimeException("Este documento não possui um PDF associado.");
-        }
+        Path path = ("visit".equalsIgnoreCase(type)) ? Paths.get(fileStoragePath, fileName) : Paths.get(fileName);
 
-        Path path;
-        if ("visit".equalsIgnoreCase(type)) {
-            path = Paths.get(fileStoragePath, fileName);
-        } else if ("risk".equalsIgnoreCase(type)) {
-            path = Paths.get(fileName);
-        } else {
-            throw new IOException("Lógica de caminho de PDF não definida para o tipo: " + type);
-        }
-
-        if (!Files.exists(path)) {
-            throw new IOException("Arquivo PDF não encontrado no caminho: " + path);
-        }
+        if (!Files.exists(path)) throw new IOException("Arquivo PDF não encontrado.");
         return Files.readAllBytes(path);
     }
 
     @Transactional
     public void deleteDocumentByTypeAndId(String type, Long id, User currentUser) {
+        if ("visit".equalsIgnoreCase(type)) technicalVisitService.deleteVisit(id, currentUser);
+        else if ("aep".equalsIgnoreCase(type)) aepService.deleteAepReport(id, currentUser);
+        else if ("risk".equalsIgnoreCase(type)) riskChecklistService.deleteReport(id, currentUser);
+        else throw new IllegalArgumentException("Tipo de documento inválido: " + type);
+    }
+
+    /**
+     * Recupera o PDF e gera um nome amigável para download.
+     */
+    @Transactional(readOnly = true)
+    public FileDownloadDTO downloadDocument(String type, Long id, User currentUser) throws IOException {
+        String pdfPathOnDisk = null;
+        byte[] pdfBytes = null;
+
+        // Variáveis para montar o nome
+        String docTypeLabel = "";
+        String title = "";
+        String companyName = "";
+        LocalDate date = LocalDate.now();
+
         if ("visit".equalsIgnoreCase(type)) {
-            technicalVisitService.deleteVisit(id, currentUser);
+            TechnicalVisit visit = technicalVisitRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Relatório não encontrado."));
+
+            pdfPathOnDisk = visit.getPdfPath();
+            docTypeLabel = "Visita Tecnica";
+            title = visit.getTitle();
+            companyName = visit.getClientCompany().getName();
+            date = visit.getVisitDate();
+
         } else if ("aep".equalsIgnoreCase(type)) {
-            aepService.deleteAepReport(id, currentUser);
+            AepReport aep = aepReportRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("AEP não encontrada."));
+
+            // AEP pode gerar em tempo real se não tiver path, assumindo lógica similar ao seu service
+            if (aep.getPdfPath() == null) {
+                pdfBytes = aepService.loadOrGenerateAepPdf(id, currentUser);
+            } else {
+                pdfPathOnDisk = aep.getPdfPath();
+            }
+
+            docTypeLabel = "AEP";
+            title = aep.getEvaluatedFunction(); // Ou outro campo de título
+            companyName = aep.getCompany().getName();
+            date = aep.getEvaluationDate();
+
         } else if ("risk".equalsIgnoreCase(type)) {
-            riskChecklistService.deleteReport(id, currentUser);
-        } else {
-            throw new IllegalArgumentException("Tipo de documento inválido: " + type);
+            OccupationalRiskReport report = riskReportRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Checklist não encontrado."));
+
+            pdfPathOnDisk = report.getPdfPath();
+            docTypeLabel = "Checklist Risco";
+            title = report.getTitle();
+            companyName = report.getCompany().getName();
+            date = report.getInspectionDate();
         }
+
+        // 1. Carrega os bytes (se já não foram gerados em memória para AEP)
+        if (pdfBytes == null) {
+            if (pdfPathOnDisk == null) throw new RuntimeException("Arquivo não encontrado no servidor.");
+            Path path = ("visit".equalsIgnoreCase(type)) ? Paths.get(fileStoragePath, pdfPathOnDisk) : Paths.get(pdfPathOnDisk);
+            pdfBytes = Files.readAllBytes(path);
+        }
+
+        // 2. Sanitiza e Monta o Nome do Arquivo
+        // Formato: TIPO - TITULO - EMPRESA - DD-MM-YYYY.pdf
+        String safeTitle = sanitizeFilename(title);
+        String safeCompany = sanitizeFilename(companyName);
+        String dateStr = date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+
+        String finalFilename = String.format("%s - %s - %s - %s.pdf",
+                docTypeLabel, safeTitle, safeCompany, dateStr);
+
+        return new FileDownloadDTO(finalFilename, pdfBytes);
+    }
+
+    // Remove caracteres especiais que quebram o download
+    private String sanitizeFilename(String input) {
+        if (input == null) return "SemNome";
+        // Mantém apenas letras, números, espaços, traços e underscores
+        return input.replaceAll("[^a-zA-Z0-9 \\-_\\.]", "").trim();
     }
 
     // ===================================================================================
-    // HELPERS E MAPPERS (Com lógica de E-mail e Cliente)
+    // 5. HELPERS DE MAPEAMENTO (Com E-mail e Nome do Técnico)
     // ===================================================================================
 
     public DocumentSummaryDTO mapVisitToSummaryDto(TechnicalVisit visit) {
@@ -268,10 +337,7 @@ public class DocumentAggregationService {
         dto.setDocumentType("Relatório de Visita");
         dto.setTitle(visit.getTitle());
         dto.setCreationDate(visit.getVisitDate());
-
-        // Usa o helper passando a empresa correta (clientCompany)
-        fillCommonFields(dto, visit.getClientCompany(), visit.getSentToClientAt(), visit.getTechnicianSignatureImageBase64());
-
+        fillCommonFields(dto, visit.getClientCompany(), visit.getSentToClientAt(), visit.getTechnicianSignatureImageBase64(), visit.getTechnician());
         return dto;
     }
 
@@ -281,10 +347,7 @@ public class DocumentAggregationService {
         dto.setDocumentType("Avaliação Ergonômica Preliminar");
         dto.setTitle(aep.getEvaluatedFunction());
         dto.setCreationDate(aep.getEvaluationDate());
-
-        // AEP não tem assinatura no mesmo padrão, passamos null
-        fillCommonFields(dto, aep.getCompany(), aep.getSentToClientAt(), null);
-
+        fillCommonFields(dto, aep.getCompany(), aep.getSentToClientAt(), null, aep.getEvaluator());
         return dto;
     }
 
@@ -294,40 +357,28 @@ public class DocumentAggregationService {
         dto.setDocumentType("Checklist de Riscos");
         dto.setTitle(report.getTitle());
         dto.setCreationDate(report.getInspectionDate());
-
-        fillCommonFields(dto, report.getCompany(), report.getSentToClientAt(), report.getTechnicianSignatureImageBase64());
-
+        fillCommonFields(dto, report.getCompany(), report.getSentToClientAt(), report.getTechnicianSignatureImageBase64(), report.getTechnician());
         return dto;
     }
 
-    /**
-     * Helper Privado: Centraliza a lógica de Cliente, Email, Status de Envio e Assinatura.
-     *
-     * @param dto O DTO a ser preenchido
-     * @param company A empresa associada ao documento
-     * @param sentAt A data/hora de envio (pode ser null)
-     * @param signatureBase64 A assinatura (para definir o status signed)
-     */
-    private void fillCommonFields(DocumentSummaryDTO dto, Company company, LocalDateTime sentAt, String signatureBase64) {
-        // 1. Lógica da Empresa e E-mail do Cliente
+    private void fillCommonFields(DocumentSummaryDTO dto, Company company, LocalDateTime sentAt, String signatureBase64, User technician) {
         if (company != null) {
             dto.setClientName(company.getName());
-
-            // Navega para buscar o e-mail do cliente vinculado
             if (company.getClient() != null) {
                 dto.setClientEmail(company.getClient().getEmail());
             } else {
-                dto.setClientEmail(null); // Botão ficará cinza no frontend
+                dto.setClientEmail(null);
             }
         } else {
             dto.setClientName("N/A");
             dto.setClientEmail(null);
         }
 
-        // 2. Lógica de Status de Envio (Verde/Vermelho)
-        dto.setEmailSent(sentAt != null);
+        if (technician != null) {
+            dto.setTechnicianName(technician.getName());
+        }
 
-        // 3. Lógica de Assinatura (Cadeado)
+        dto.setEmailSent(sentAt != null);
         dto.setSigned(signatureBase64 != null && !signatureBase64.isBlank());
     }
 }

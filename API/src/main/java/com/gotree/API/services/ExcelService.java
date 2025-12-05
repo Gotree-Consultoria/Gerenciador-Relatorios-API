@@ -8,6 +8,7 @@ import com.gotree.API.entities.Unit;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -114,6 +115,7 @@ public class ExcelService {
         return formatter.formatCellValue(cell).trim();
     }
 
+    @Transactional(readOnly = true)
     public ByteArrayInputStream exportCompaniesToExcel() throws IOException {
         String[] columns = {"Nome Empresa", "CNPJ Empresa", "Nome Unidade", "CNPJ Unidade", "Nome Setor"};
 
