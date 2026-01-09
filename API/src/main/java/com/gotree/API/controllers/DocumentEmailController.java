@@ -149,7 +149,7 @@ public class DocumentEmailController {
                             "    <p style='margin-bottom: 0;'>Atenciosamente,<br><strong>Equipe Go-Tree</strong></p>" +
                             "  </div>" +
                             "  <div style='background-color: #f4f4f4; padding: 16px; text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #eeeeee;'>" +
-                            "    <p style='margin: 4px 0;'>© Go-Tree Consultoria LTDA.</p>" +
+                            "    <p style='margin: 4px 0;'>© Go-Tree Consultoria.</p>" +
                             "    <p style='margin: 4px 0;'>Este é um envio automático do nosso sistema.</p>" +
                             "  </div>" +
                             "</div>",

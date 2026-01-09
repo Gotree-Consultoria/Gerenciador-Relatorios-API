@@ -89,4 +89,6 @@ public class ClientPortalController {
 
         return ResponseEntity.ok(new AuthenticationResponseDTO(jwtToken));
     }
+
+    // TODO: endpoint para cliente alterar a senha
 }

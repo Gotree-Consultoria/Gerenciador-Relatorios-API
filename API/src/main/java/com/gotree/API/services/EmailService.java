@@ -33,4 +33,22 @@ public class EmailService {
             throw new RuntimeException("Erro ao enviar e-mail: " + e.getMessage());
         }
     }
+
+
+    public void sendHtmlEmail(String to, String subject, String htmlBody) {
+        try {
+            jakarta.mail.internet.MimeMessage message = mailSender.createMimeMessage();
+            org.springframework.mail.javamail.MimeMessageHelper helper =
+                    new org.springframework.mail.javamail.MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true); // true = ativa HTML
+            // helper.setFrom("seu-email@dominio.com"); // Se precisar forçar o remetente
+
+            mailSender.send(message);
+        } catch (jakarta.mail.MessagingException e) {
+            throw new RuntimeException("Erro ao enviar e-mail HTML: " + e.getMessage());
+        }
+    }
 }

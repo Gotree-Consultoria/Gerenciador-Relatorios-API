@@ -22,14 +22,15 @@ public class ClientPortalService {
     private final ClientRepository clientRepository;
     private final AgendaEventRepository agendaEventRepository;
     private final PasswordEncoder passwordEncoder;
-    // Injetar aqui um serviço de envio de email (JavaMailSender)
+    private final EmailService emailService;
 
     public ClientPortalService(ClientRepository clientRepository,
                                AgendaEventRepository agendaEventRepository,
-                               PasswordEncoder passwordEncoder) {
+                               PasswordEncoder passwordEncoder, EmailService emailService) {
         this.clientRepository = clientRepository;
         this.agendaEventRepository = agendaEventRepository;
         this.passwordEncoder = passwordEncoder;
+        this.emailService = emailService;
     }
 
     // Passo 1: Solicitar primeiro acesso
@@ -38,16 +39,46 @@ public class ClientPortalService {
         Client client = clientRepository.findByEmail(dto.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("E-mail não encontrado na base de clientes."));
 
-        // Gera um código simples de 6 caracteres (pode usar UUID se preferir)
+        // Gera código de 6 caracteres
         String code = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
         client.setAccessCode(code);
-        client.setAccessCodeExpiration(LocalDateTime.now().plusMinutes(15)); // Validade de 15 min
+        client.setAccessCodeExpiration(LocalDateTime.now().plusMinutes(15));
 
         clientRepository.save(client);
 
-        // TODO: Enviar e-mail real para o cliente com o código
-        System.out.println("CÓDIGO DE ACESSO PARA " + dto.getEmail() + ": " + code);
+        sendAccessCodeEmail(client.getName(), client.getEmail(), code);
+    }
+
+    private void sendAccessCodeEmail(String clientName, String email, String code) {
+        String subject = "Seu Código de Acesso - Go-Tree Portal";
+
+        String body = String.format(
+                "<div style='font-family: \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>" +
+                        "  <div style='background-color: #166534; padding: 24px; text-align: center;'>" +
+                        "    <h2 style='color: #ffffff; margin: 0; font-weight: 600; font-size: 24px;'>Go-Tree Consultoria</h2>" +
+                        "  </div>" +
+                        "  <div style='padding: 32px 24px; color: #333333; line-height: 1.6;'>" +
+                        "    <p style='font-size: 16px; margin-top: 0;'>Olá, <strong>%s</strong>.</p>" +
+                        "    <p style='font-size: 16px;'>Recebemos uma solicitação de primeiro acesso para o seu usuário.</p>" +
+                        "    <div style='background-color: #f8f9fa; border-left: 4px solid #166534; padding: 16px; margin: 24px 0; border-radius: 4px; text-align: center;'>" +
+                        "      <p style='margin: 0; font-size: 14px; color: #666;'>Seu código de verificação é:</p>" +
+                        "      <p style='margin: 8px 0; font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #166534;'>%s</p>" +
+                        "      <p style='margin: 0; font-size: 12px; color: #999;'>Válido por 15 minutos</p>" +
+                        "    </div>" +
+                        "    <p style='font-size: 14px;'>Copie este código e insira na tela de definição de senha para liberar seu acesso.</p>" +
+                        "    <p style='margin-top: 32px; font-size: 14px; color: #666;'>Se você não solicitou este código, ignore este e-mail.</p>" +
+                        "  </div>" +
+                        "  <div style='background-color: #f4f4f4; padding: 16px; text-align: center; font-size: 12px; color: #666666; border-top: 1px solid #eeeeee;'>" +
+                        "    <p style='margin: 4px 0;'>© Go-Tree Consultoria.</p>" +
+                        "  </div>" +
+                        "</div>",
+                (clientName != null ? clientName : "Cliente"),
+                code
+        );
+
+        // Chama o EmailService
+        emailService.sendHtmlEmail(email, subject, body);
     }
 
     // Passo 2: Validar código e criar senha
