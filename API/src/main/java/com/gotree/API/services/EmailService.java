@@ -20,7 +20,7 @@ public class EmailService {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            helper.setFrom("contato@gotreeconsultoria.com.br");
+            helper.setFrom("apoio@gotreeconsultoria.com.br");
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(body, true); // true = HTML
@@ -44,7 +44,7 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true); // true = ativa HTML
-            // helper.setFrom("seu-email@dominio.com"); // Se precisar forçar o remetente
+            helper.setFrom("apoio@gotreeconsultoria.com.br"); // Se precisar forçar o remetente
 
             mailSender.send(message);
         } catch (jakarta.mail.MessagingException e) {

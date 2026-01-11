@@ -74,17 +74,27 @@ public class DocumentEmailController {
             // Variáveis para processamento
             java.util.Set<com.gotree.API.entities.Client> clients = null;
             String companyName = "";
-            String docName = type.toUpperCase() + "_" + id + ".pdf";
             String subjectType = "";
+
+            // Variável que vamos calcular agora (Nome do Arquivo)
+            String docName = "Documento.pdf";
+            java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
             // 2. Lógica de Seleção baseada no Tipo
             if ("risk".equalsIgnoreCase(type)) {
                 OccupationalRiskReport report = riskRepo.findById(id)
                         .orElseThrow(() -> new RuntimeException("Checklist de Risco não encontrado."));
 
-                clients = report.getCompany().getClients(); // ALTERADO: getClients()
+                clients = report.getCompany().getClients();
                 companyName = report.getCompany().getName();
                 subjectType = "Checklist de Riscos";
+
+                // --- MONTA O NOME BONITO (RISCO) ---
+                String safeTitle = sanitizeFilename(report.getTitle() != null ? report.getTitle() : "Checklist");
+                String safeCompany = sanitizeFilename(companyName);
+                String dateStr = report.getInspectionDate().format(fmt);
+                docName = String.format("Checklist Risco - %s - %s - %s.pdf", safeTitle, safeCompany, dateStr);
+                // -----------------------------------
 
                 report.setSentToClientAt(LocalDateTime.now());
                 riskRepo.save(report);
@@ -93,9 +103,16 @@ public class DocumentEmailController {
                 TechnicalVisit visit = visitRepo.findById(id)
                         .orElseThrow(() -> new RuntimeException("Relatório de Visita não encontrado."));
 
-                clients = visit.getClientCompany().getClients(); // ALTERADO: getClients()
+                clients = visit.getClientCompany().getClients();
                 companyName = visit.getClientCompany().getName();
                 subjectType = "Relatório de Visita Técnica";
+
+                // --- MONTA O NOME (VISITA) ---
+                String safeTitle = sanitizeFilename(visit.getTitle() != null ? visit.getTitle() : "Visita");
+                String safeCompany = sanitizeFilename(companyName);
+                String dateStr = visit.getVisitDate().format(fmt);
+                docName = String.format("Visita Tecnica - %s - %s - %s.pdf", safeTitle, safeCompany, dateStr);
+                // ------------------------------------
 
                 visit.setSentToClientAt(LocalDateTime.now());
                 visitRepo.save(visit);
@@ -104,9 +121,16 @@ public class DocumentEmailController {
                 AepReport aep = aepRepo.findById(id)
                         .orElseThrow(() -> new RuntimeException("AEP não encontrada."));
 
-                clients = aep.getCompany().getClients(); // ALTERADO: getClients()
+                clients = aep.getCompany().getClients();
                 companyName = aep.getCompany().getName();
                 subjectType = "Avaliação Ergonômica (AEP)";
+
+                // --- MONTA O NOME (AEP) ---
+                String safeTitle = sanitizeFilename(aep.getEvaluatedFunction() != null ? aep.getEvaluatedFunction() : "AEP");
+                String safeCompany = sanitizeFilename(companyName);
+                String dateStr = aep.getEvaluationDate().format(fmt);
+                docName = String.format("AEP - %s - %s - %s.pdf", safeTitle, safeCompany, dateStr);
+                // ---------------------------------
 
                 aep.setSentToClientAt(LocalDateTime.now());
                 aepRepo.save(aep);
@@ -115,7 +139,7 @@ public class DocumentEmailController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Tipo de documento inválido: " + type));
             }
 
-            // 3. Validação: Verifica se existem clientes e coleta e-mails válidos
+            // 3. Validação: Verifica se existem clientes
             if (clients == null || clients.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "A empresa deste relatório não possui clientes vinculados."));
             }
@@ -132,6 +156,8 @@ public class DocumentEmailController {
 
             // 4. Construção do E-mail (Corpo HTML)
             String subject = "Documento Emitido: " + subjectType + " - " + companyName;
+
+            // Corpo do e-mail (Mantive o seu original)
             String body = String.format(
                     "<div style='font-family: \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;'>" +
                             "  <div style='background-color: #166534; padding: 24px; text-align: center;'>" +
@@ -156,17 +182,15 @@ public class DocumentEmailController {
                     subjectType, companyName
             );
 
-            // 5. Envio (Itera sobre a lista de e-mails válidos)
+            // 5. Envio
             for (String email : validEmails) {
                 try {
                     emailService.sendReportWithAttachment(email, subject, body, pdfBytes, docName);
                 } catch (Exception e) {
                     System.err.println("Erro ao enviar para: " + email + " - " + e.getMessage());
-                    // Continua tentando enviar para os outros
                 }
             }
 
-            // Retorna sucesso listando os e-mails processados
             String allEmails = String.join(", ", validEmails);
             return ResponseEntity.ok().body(Map.of(
                     "message", "Documento enviado com sucesso.",
@@ -177,5 +201,11 @@ public class DocumentEmailController {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body(Map.of("error", "Erro ao processar envio: " + e.getMessage()));
         }
+    }
+
+    private String sanitizeFilename(String input) {
+        if (input == null) return "SemNome";
+        // Mantém apenas letras, números, espaços, traços e underscores
+        return input.replaceAll("[^a-zA-Z0-9 \\-_\\.]", "").trim();
     }
 }
