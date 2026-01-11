@@ -32,13 +32,9 @@
         .photo-wrapper {
             width: 7.0cm;
             min-height: 6.2cm;
-            display: flex;
-            flex-direction: column;   /* ← Empilha verticalmente */
-            align-items: center;      /* ← Centraliza horizontalmente */
-            justify-content: center;  /* ← Centraliza verticalmente */
-            gap: 1px;                 /* ← Espaço entre fotos */
-            margin: 0 auto;
+            text-align: center;      /* Centraliza horizontalmente */
             padding: 1px;
+            margin: 0 auto;
         }
 
         .img-single {
@@ -48,15 +44,17 @@
             height: auto;
             object-fit: contain;
             display: block;
+            margin: 0 auto;          /* Centraliza */
         }
 
         .img-dual {
-            max-height: 1.95cm !important;  /* Aumentado de 1.8cm para 1.95cm */
+            max-height: 1.95cm !important;
             max-width: 98% !important;
             width: auto;
             height: auto;
             object-fit: contain;
             display: block;
+            margin: 0 auto 1px auto;  /* Centraliza + espaço */
         }
 
         /* --- ESTILO DO CABEÇALHO E GRADES DE DADOS --- */
